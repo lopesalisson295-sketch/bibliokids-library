@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    /* Soft warm peachy background instead of harsh white/gray */
-    --background: 35 60% 95%;
+    /* Soft warm peachy background (darkened to assure it isn't seen as white) */
+    --background: 32 80% 92%;
     --foreground: 220 20% 20%;
 
     /* Keep cards white for clean reading */

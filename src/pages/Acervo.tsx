@@ -29,6 +29,7 @@ const emptyForm = {
 
 const Acervo = () => {
   const [livros, setLivros] = useState<Livro[]>([]);
+  const [borrowedBookIds, setBorrowedBookIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,16 +55,30 @@ const Acervo = () => {
 
   const fetchLivros = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+
+    // Fetch books
+    const { data: booksData, error: booksError } = await supabase
       .from("livros")
       .select("*")
       .order("criado_em", { ascending: false });
 
-    if (error) {
-      toast({ title: "Erro ao buscar livros", description: error.message, variant: "destructive" });
+    // Fetch active loans to determine availability
+    const { data: loansData, error: loansError } = await supabase
+      .from("emprestimos")
+      .select("livro_id, status")
+      .neq("status", "devolvido");
+
+    if (booksError) {
+      toast({ title: "Erro ao buscar livros", description: booksError.message, variant: "destructive" });
     } else {
-      setLivros(data || []);
+      setLivros(booksData || []);
     }
+
+    if (!loansError && loansData) {
+      const borrowedIds = new Set(loansData.map(l => l.livro_id));
+      setBorrowedBookIds(borrowedIds);
+    }
+
     setLoading(false);
   };
 
@@ -715,47 +730,58 @@ const Acervo = () => {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((livro) => (
-            <Card key={livro.id} className="border-0 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex gap-4 min-w-0 flex-1">
-                    {livro.capa_url ? (
-                      <img src={livro.capa_url} alt={livro.titulo} className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0" />
-                    ) : (
-                      <div className="w-16 h-24 bg-amber-100 flex items-center justify-center rounded shadow-sm flex-shrink-0">
-                        <BookOpen className="h-8 w-8 text-amber-500" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground truncate text-lg">{livro.titulo}</h3>
-                      <p className="text-sm text-foreground/80 mt-1"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
+          {filtered.map((livro) => {
+            const isBorrowed = borrowedBookIds.has(livro.id);
 
-                      <div className="flex flex-col gap-1 mt-3 bg-muted/30 p-2 rounded">
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                          <p className="text-xs"><span className="text-muted-foreground">Gênero:</span> {livro.genero || "—"}</p>
-                          <p className="text-xs"><span className="text-muted-foreground">Ano:</span> {livro.ano_publicacao || "—"}</p>
-                          <p className="text-xs"><span className="text-muted-foreground">Editora:</span> {livro.editora || "—"}</p>
-                          <p className="text-xs"><span className="text-muted-foreground">ISBN:</span> {livro.isbn || "—"}</p>
+            return (
+              <Card key={livro.id} className="border-0 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group relative">
+                <div className="absolute top-2 right-2 z-10">
+                  {isBorrowed ? (
+                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100 shadow-sm border border-red-200 cursor-default px-2 py-0.5 font-medium">Emprestado</Badge>
+                  ) : (
+                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 shadow-sm border border-emerald-200 cursor-default px-2 py-0.5 font-medium">Disponível</Badge>
+                  )}
+                </div>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4 mt-2">
+                    <div className="flex gap-4 min-w-0 flex-1">
+                      {livro.capa_url ? (
+                        <img src={livro.capa_url} alt={livro.titulo} className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0" />
+                      ) : (
+                        <div className="w-16 h-24 bg-amber-100 flex items-center justify-center rounded shadow-sm flex-shrink-0">
+                          <BookOpen className="h-8 w-8 text-amber-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-foreground truncate text-lg">{livro.titulo}</h3>
+                        <p className="text-sm text-foreground/80 mt-1"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
+
+                        <div className="flex flex-col gap-1 mt-3 bg-muted/30 p-2 rounded">
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                            <p className="text-xs"><span className="text-muted-foreground">Gênero:</span> {livro.genero || "—"}</p>
+                            <p className="text-xs"><span className="text-muted-foreground">Ano:</span> {livro.ano_publicacao || "—"}</p>
+                            <p className="text-xs"><span className="text-muted-foreground">Editora:</span> {livro.editora || "—"}</p>
+                            <p className="text-xs"><span className="text-muted-foreground">ISBN:</span> {livro.isbn || "—"}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openHistoryDialog(livro)} title="Histórico de empréstimos">
+                        <History className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(livro)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setDeletingId(livro.id); setDeleteDialogOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openHistoryDialog(livro)} title="Histórico de empréstimos">
-                      <History className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(livro)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setDeletingId(livro.id); setDeleteDialogOpen(true); }}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
