@@ -68,7 +68,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <AnimatedBackground variant="subtle" />
+      <div className="min-h-screen flex w-full relative z-10">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center justify-between border-b border-border bg-card px-4 sticky top-0 z-10">
