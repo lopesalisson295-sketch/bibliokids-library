@@ -355,9 +355,25 @@ const Emprestimos = () => {
                   <SelectValue placeholder="Selecione o livro" />
                 </SelectTrigger>
                 <SelectContent>
-                  {livros.map(l => (
-                    <SelectItem key={l.id} value={l.id}>{l.titulo} — {l.autor}</SelectItem>
-                  ))}
+                  {(() => {
+                    const borrowedBookIds = new Set(
+                      emprestimos
+                        .filter(e => {
+                          const status = getStatus(e);
+                          return status === "ativo" || status === "atrasado";
+                        })
+                        .map(e => e.livro_id)
+                    );
+
+                    return livros.map(l => {
+                      const isBorrowed = borrowedBookIds.has(l.id);
+                      return (
+                        <SelectItem key={l.id} value={l.id} disabled={isBorrowed}>
+                          {l.titulo} — {l.autor} {isBorrowed ? "(Emprestado)" : ""}
+                        </SelectItem>
+                      );
+                    });
+                  })()}
                 </SelectContent>
               </Select>
               {form.livro_id && (() => {
