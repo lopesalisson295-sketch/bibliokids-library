@@ -896,11 +896,11 @@ const Acervo = () => {
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2">{livro.titulo}</h3>
                         <p className="text-sm text-foreground/80 mt-1 truncate"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
-                        {livro.tradutor && (
-                          <p className="text-sm text-foreground/80 mt-0.5 truncate"><span className="text-muted-foreground">Tradutor:</span> {livro.tradutor}</p>
-                        )}
 
                         <div className="flex flex-col gap-1.5 mt-3 bg-muted/30 p-2.5 rounded text-xs">
+                          {livro.tradutor && (
+                            <p className="break-words"><span className="text-muted-foreground font-medium">Tradutor:</span> {livro.tradutor}</p>
+                          )}
                           <p className="break-words"><span className="text-muted-foreground font-medium">Gênero:</span> {livro.genero || "—"}</p>
                           <p className="break-words"><span className="text-muted-foreground font-medium">Ano:</span> {livro.ano_publicacao || "—"}</p>
                           <p className="break-words"><span className="text-muted-foreground font-medium">Editora:</span> {livro.editora || "—"}</p>
