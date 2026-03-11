@@ -549,15 +549,38 @@ const Acervo = () => {
         bookData.genero = genreFromDescription(bookData.descricao);
       }
 
-      // Google Books por título+autor como último recurso para capa e gênero
-      if (bookData.titulo && (!bookData.capa_url || !bookData.genero)) {
+      // ========================================
+      // 3. BUSCA DE TRADUÇÃO & FALLBACK FINAL
+      // ========================================
+      // Se a pontuação for < 10, significa que não achou nem na BrasilAPI nem no Google-PT. 
+      // Provavelmente é um livro estrangeiro. Vamos tentar achar a edição traduzida!
+      const isLikelyForeign = validResults.length > 0 && validResults[0].data.score < 10;
+
+      if (bookData.titulo && (!bookData.capa_url || !bookData.genero || isLikelyForeign)) {
+        const queryStr = encodeURIComponent(`inauthor:${bookData.autor} ${bookData.titulo}`);
         const gData = await safeFetchJson(
-          `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(bookData.titulo + (bookData.autor ? " " + bookData.autor : ""))}&langRestrict=pt&maxResults=5`
+          `https://www.googleapis.com/books/v1/volumes?q=${queryStr}&langRestrict=pt&maxResults=5`
         );
+
+        let translatedFound = false;
+
         for (const item of (gData?.items || [])) {
           const vi = item.volumeInfo;
+
+          // Se for estrangeiro e o Google achou uma versão em PT-BR, substituímos os dados básicos pela tradução!
+          if (isLikelyForeign && !translatedFound && vi?.language === "pt" && vi?.title) {
+            bookData.titulo = vi.title; // Título traduzido!
+            if (vi.publisher) bookData.editora = vi.publisher;
+            if (vi.description) {
+              bookData.descricao = vi.description;
+              const newG = genreFromDescription(vi.description);
+              if (newG) bookData.genero = newG;
+            }
+            translatedFound = true;
+          }
+
           if (!bookData.capa_url && vi?.imageLinks) {
-            const c = vi.imageLinks.medium || vi.imageLinks.small || vi.imageLinks.thumbnail || "";
+            const c = vi.imageLinks.extraLarge || vi.imageLinks.large || vi.imageLinks.medium || vi.imageLinks.small || vi.imageLinks.thumbnail || "";
             if (c) bookData.capa_url = upgradeGoogleCover(c);
           }
           if (!bookData.genero && vi?.categories) {
@@ -568,7 +591,7 @@ const Acervo = () => {
             const g = genreFromDescription(vi.description);
             if (g) bookData.genero = g;
           }
-          if (bookData.capa_url && bookData.genero) break;
+          if (bookData.capa_url && bookData.genero && (!isLikelyForeign || translatedFound)) break;
         }
       }
 
