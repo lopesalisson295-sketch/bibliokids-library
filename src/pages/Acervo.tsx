@@ -21,6 +21,7 @@ type Livro = Tables<"livros">;
 const emptyForm = {
   titulo: "",
   autor: "",
+  tradutor: "",
   editora: "",
   genero: "",
   isbn: "",
@@ -103,6 +104,7 @@ const Acervo = () => {
     setForm({
       titulo: livro.titulo,
       autor: livro.autor,
+      tradutor: livro.tradutor || "",
       editora: livro.editora || "",
       genero: livro.genero || "",
       isbn: livro.isbn || "",
@@ -131,6 +133,7 @@ const Acervo = () => {
     const payload = {
       titulo: form.titulo.trim(),
       autor: form.autor.trim(),
+      tradutor: form.tradutor.trim() || null,
       editora: form.editora.trim() || null,
       genero: form.genero.trim() || null,
       isbn: form.isbn.trim() || null,
@@ -294,6 +297,23 @@ const Acervo = () => {
         return best;
       };
 
+      const extractTranslators = (names: string[]): { authors: string, translators: string } => {
+        if (!names || names.length === 0) return { authors: "", translators: "" };
+        const authorsList: string[] = [];
+        const translatorsList: string[] = [];
+        names.forEach(name => {
+          if (/traduto|translato|traduçã/i.test(name)) {
+            translatorsList.push(name.replace(/\s*\(\s*(Tradutor|Translator|Tradução|Trad)\s*\)/i, "").trim());
+          } else {
+            authorsList.push(name.trim());
+          }
+        });
+        return {
+          authors: authorsList.join(", "),
+          translators: translatorsList.join(", ")
+        };
+      };
+
       // Detectar gênero pela descrição do livro
       const genreFromDescription = (desc: string): string => {
         if (!desc) return "";
@@ -319,10 +339,10 @@ const Acervo = () => {
       // ========================================
       // BUSCA ULTRA-PARALELA — TODAS AS VARIANTES AO MESMO TEMPO
       // ========================================
-      type BookResult = { titulo: string; autor: string; editora: string; ano: string; genero: string; capa_url: string; descricao: string; cats: string[]; googleVolumeId: string; score: number };
+      type BookResult = { titulo: string; autor: string; tradutor: string; editora: string; ano: string; genero: string; capa_url: string; descricao: string; cats: string[]; googleVolumeId: string; score: number };
 
       const fetchSingleIsbn = async (isbn: string): Promise<BookResult> => {
-        const b: BookResult = { titulo: "", autor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", cats: [], googleVolumeId: "", score: 0 };
+        const b: BookResult = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", cats: [], googleVolumeId: "", score: 0 };
 
         // === TODAS AS APIs EM PARALELO ===
         const [googleR, googlePtR, brasilR, olBooksR, olEditionR] = await Promise.allSettled([
@@ -355,7 +375,11 @@ const Acervo = () => {
           b.googleVolumeId = bestGoogle.id || "";
           b.titulo = v.title || "";
           if (v.subtitle) b.titulo += ": " + v.subtitle;
-          b.autor = v.authors ? v.authors.join(", ") : "";
+          if (v.authors) {
+            const ext = extractTranslators(v.authors);
+            b.autor = ext.authors;
+            b.tradutor = ext.translators;
+          }
           b.editora = v.publisher || "";
           b.ano = v.publishedDate ? v.publishedDate.substring(0, 4) : "";
           b.capa_url = upgradeGoogleCover(v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "");
@@ -368,7 +392,11 @@ const Acervo = () => {
         const bd = brasilR.status === "fulfilled" ? brasilR.value : null;
         if (bd && !bd.message) {
           if (bd.title) { b.titulo = bd.title; b.score += 10; } // Maior confiança para dados BR
-          if (bd.authors?.length > 0) b.autor = bd.authors.join(", ");
+          if (bd.authors?.length > 0) {
+            const ext = extractTranslators(bd.authors);
+            b.autor = ext.authors;
+            if (ext.translators) b.tradutor = ext.translators;
+          }
           if (bd.publisher) b.editora = bd.publisher;
           if (bd.year) b.ano = String(bd.year);
           if (bd.cover_url) b.capa_url = bd.cover_url;
@@ -383,7 +411,11 @@ const Acervo = () => {
         const olBook = olb?.[`ISBN:${isbn}`];
         if (olBook) {
           if (!b.titulo && olBook.title) b.titulo = olBook.title;
-          if (!b.autor && olBook.authors) b.autor = olBook.authors.map((a: any) => a.name).join(", ");
+          if (olBook.authors) {
+            const ext = extractTranslators(olBook.authors.map((a: any) => a.name));
+            if (!b.autor && ext.authors) b.autor = ext.authors;
+            if (!b.tradutor && ext.translators) b.tradutor = ext.translators;
+          }
           if (!b.editora && olBook.publishers) b.editora = olBook.publishers.map((p: any) => p.name).join(", ");
           if (!b.ano && olBook.publish_date) b.ano = olBook.publish_date.match(/\d{4}/)?.[0] || "";
           if (!b.capa_url && olBook.cover) b.capa_url = olBook.cover.large || olBook.cover.medium || "";
@@ -427,7 +459,7 @@ const Acervo = () => {
       validResults.sort((a, b) => b.data.score - a.data.score);
 
       // Merge inteligente: pegar o melhor e preencher gaps com outros
-      let bookData = { titulo: "", autor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "" };
+      let bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "" };
       let usedIsbn = correctedIsbn;
       let allCats: string[] = [];
       let bestGoogleVolumeId = "";
@@ -436,6 +468,7 @@ const Acervo = () => {
         const best = validResults[0];
         bookData.titulo = best.data.titulo;
         bookData.autor = best.data.autor;
+        bookData.tradutor = best.data.tradutor;
         bookData.editora = best.data.editora;
         bookData.ano = best.data.ano;
         bookData.capa_url = best.data.capa_url;
@@ -449,6 +482,7 @@ const Acervo = () => {
           const other = validResults[i].data;
           if (!bookData.titulo && other.titulo) { bookData.titulo = other.titulo; usedIsbn = validResults[i].isbn; }
           if (!bookData.autor && other.autor) bookData.autor = other.autor;
+          if (!bookData.tradutor && other.tradutor) bookData.tradutor = other.tradutor;
           if (!bookData.editora && other.editora) bookData.editora = other.editora;
           if (!bookData.ano && other.ano) bookData.ano = other.ano;
           if (!bookData.capa_url && other.capa_url) bookData.capa_url = other.capa_url;
@@ -570,6 +604,11 @@ const Acervo = () => {
           // Se for estrangeiro e o Google achou uma versão em PT-BR, substituímos os dados básicos pela tradução!
           if (isLikelyForeign && !translatedFound && vi?.language === "pt" && vi?.title) {
             bookData.titulo = vi.title; // Título traduzido!
+            if (vi.authors) {
+              const ext = extractTranslators(vi.authors);
+              bookData.autor = ext.authors;
+              bookData.tradutor = ext.translators;
+            }
             if (vi.publisher) bookData.editora = vi.publisher;
             if (vi.description) {
               bookData.descricao = vi.description;
@@ -606,6 +645,7 @@ const Acervo = () => {
           ...prev,
           titulo: bookData.titulo || prev.titulo,
           autor: bookData.autor || prev.autor,
+          tradutor: bookData.tradutor || prev.tradutor,
           editora: bookData.editora || prev.editora,
           ano_publicacao: bookData.ano || prev.ano_publicacao,
           genero: bookData.genero || prev.genero,
@@ -838,6 +878,9 @@ const Acervo = () => {
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2">{livro.titulo}</h3>
                         <p className="text-sm text-foreground/80 mt-1 truncate"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
+                        {livro.tradutor && (
+                          <p className="text-sm text-foreground/80 mt-0.5 truncate"><span className="text-muted-foreground">Tradutor:</span> {livro.tradutor}</p>
+                        )}
 
                         <div className="flex flex-col gap-1.5 mt-3 bg-muted/30 p-2.5 rounded text-xs">
                           <p className="break-words"><span className="text-muted-foreground font-medium">Gênero:</span> {livro.genero || "—"}</p>
@@ -950,9 +993,15 @@ const Acervo = () => {
               <Label htmlFor="titulo">Título *</Label>
               <Input id="titulo" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Nome do livro" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="autor">Autor *</Label>
-              <Input id="autor" value={form.autor} onChange={(e) => setForm({ ...form, autor: e.target.value })} placeholder="Nome do autor" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="autor">Autor *</Label>
+                <Input id="autor" value={form.autor} onChange={(e) => setForm({ ...form, autor: e.target.value })} placeholder="Nome do autor" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tradutor">Tradutor</Label>
+                <Input id="tradutor" value={form.tradutor} onChange={(e) => setForm({ ...form, tradutor: e.target.value })} placeholder="Nome do tradutor" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

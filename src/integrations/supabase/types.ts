@@ -99,6 +99,7 @@ export type Database = {
           genero: string | null
           id: string
           isbn: string | null
+          tradutor: string | null
           titulo: string
         }
         Insert: {
@@ -110,6 +111,7 @@ export type Database = {
           genero?: string | null
           id?: string
           isbn?: string | null
+          tradutor?: string | null
           titulo: string
         }
         Update: {
@@ -121,6 +123,7 @@ export type Database = {
           genero?: string | null
           id?: string
           isbn?: string | null
+          tradutor?: string | null
           titulo?: string
         }
         Relationships: []
