@@ -895,7 +895,7 @@ const Acervo = () => {
                       )}
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2">{livro.titulo}</h3>
-                        <p className="text-sm text-foreground/80 mt-1 truncate"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
+                        <p className="text-sm text-foreground/80 mt-1 leading-snug break-words"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
 
                         <div className="flex flex-col gap-1.5 mt-3 bg-muted/30 p-2.5 rounded text-xs">
                           {livro.tradutor && (
