@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadImage } from "@/utils/uploadImage";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const Configuracoes = () => {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const { toast } = useToast();
 
   // Library Settings (localStorage)
@@ -96,7 +98,13 @@ const Configuracoes = () => {
           <div className="flex items-center gap-4">
             <div className="relative group w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-sm">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => setLightboxOpen(true)}
+                  title="Clique para ampliar"
+                />
               ) : (
                 <span>{userEmail ? (userName || userEmail).charAt(0).toUpperCase() : "?"}</span>
               )}
@@ -204,6 +212,14 @@ const Configuracoes = () => {
           <Badge variant="outline" className="text-xs">SaaS</Badge>
         </CardContent>
       </Card>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={avatarUrl}
+        alt={userName || "Foto de perfil"}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 };

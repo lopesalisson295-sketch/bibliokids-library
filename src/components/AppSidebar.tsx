@@ -39,7 +39,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60 shadow-sm">
       <SidebarContent>
         {/* Logo */}
         {!collapsed && (

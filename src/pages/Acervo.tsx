@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { uploadImage } from "@/utils/uploadImage";
 import { format, isAfter } from "date-fns";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type Livro = Tables<"livros">;
 
@@ -47,7 +48,14 @@ const Acervo = () => {
   const [historyLivro, setHistoryLivro] = useState<Livro | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [lightboxUrl, setLightboxUrl] = useState("");
+  const [lightboxAlt, setLightboxAlt] = useState("");
   const { toast } = useToast();
+
+  const openLightbox = (url: string, alt: string) => {
+    setLightboxUrl(url);
+    setLightboxAlt(alt);
+  };
 
   useEffect(() => {
     fetchLivros();
@@ -746,22 +754,27 @@ const Acervo = () => {
                   <div className="flex items-start justify-between gap-4 mt-2">
                     <div className="flex gap-4 min-w-0 flex-1">
                       {livro.capa_url ? (
-                        <img src={livro.capa_url} alt={livro.titulo} className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0" />
+                        <img
+                          src={livro.capa_url}
+                          alt={livro.titulo}
+                          className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0 clickable-image"
+                          onClick={() => openLightbox(livro.capa_url!, livro.titulo)}
+                        />
                       ) : (
                         <div className="w-16 h-24 bg-amber-100 flex items-center justify-center rounded shadow-sm flex-shrink-0">
                           <BookOpen className="h-8 w-8 text-amber-500" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground truncate text-lg">{livro.titulo}</h3>
-                        <p className="text-sm text-foreground/80 mt-1"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
+                        <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2">{livro.titulo}</h3>
+                        <p className="text-sm text-foreground/80 mt-1 truncate"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
 
                         <div className="flex flex-col gap-1 mt-3 bg-muted/30 p-2 rounded">
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                            <p className="text-xs"><span className="text-muted-foreground">Gênero:</span> {livro.genero || "—"}</p>
-                            <p className="text-xs"><span className="text-muted-foreground">Ano:</span> {livro.ano_publicacao || "—"}</p>
-                            <p className="text-xs"><span className="text-muted-foreground">Editora:</span> {livro.editora || "—"}</p>
-                            <p className="text-xs"><span className="text-muted-foreground">ISBN:</span> {livro.isbn || "—"}</p>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                            <p className="text-xs truncate"><span className="text-muted-foreground">Gênero:</span> {livro.genero || "—"}</p>
+                            <p className="text-xs truncate"><span className="text-muted-foreground">Ano:</span> {livro.ano_publicacao || "—"}</p>
+                            <p className="text-xs truncate"><span className="text-muted-foreground">Editora:</span> {livro.editora || "—"}</p>
+                            <p className="text-xs truncate"><span className="text-muted-foreground">ISBN:</span> {livro.isbn || "—"}</p>
                           </div>
                         </div>
                       </div>
@@ -1017,6 +1030,14 @@ const Acervo = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxUrl}
+        alt={lightboxAlt}
+        open={!!lightboxUrl}
+        onClose={() => setLightboxUrl("")}
+      />
     </div>
   );
 };

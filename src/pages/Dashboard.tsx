@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { format, subMonths, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ImageLightbox from "@/components/ImageLightbox";
 
 interface LoanActivity {
   id: string;
@@ -30,6 +31,13 @@ const Dashboard = () => {
   const [statusData, setStatusData] = useState<{ name: string; value: number }[]>([]);
   const [topBooks, setTopBooks] = useState<{ titulo: string; count: number; capa_url?: string }[]>([]);
   const [topStudents, setTopStudents] = useState<{ nome: string; count: number; foto_url?: string }[]>([]);
+  const [lightboxUrl, setLightboxUrl] = useState("");
+  const [lightboxAlt, setLightboxAlt] = useState("");
+
+  const openLightbox = (url: string, alt: string) => {
+    setLightboxUrl(url);
+    setLightboxAlt(alt);
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -283,7 +291,12 @@ const Dashboard = () => {
                   <div key={idx} className="flex items-center gap-3">
                     <div className="font-bold text-muted-foreground w-4 text-center">{idx + 1}</div>
                     {aluno.foto_url ? (
-                      <img src={aluno.foto_url} alt={aluno.nome} className="w-8 h-8 rounded-full object-cover shadow-sm bg-muted flex-shrink-0" />
+                      <img
+                        src={aluno.foto_url}
+                        alt={aluno.nome}
+                        className="w-8 h-8 rounded-full object-cover shadow-sm bg-muted flex-shrink-0 clickable-image"
+                        onClick={() => openLightbox(aluno.foto_url!, aluno.nome)}
+                      />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0">
                         {aluno.nome.charAt(0).toUpperCase()}
@@ -322,7 +335,12 @@ const Dashboard = () => {
                   <div key={idx} className="flex items-center gap-3">
                     <div className="font-bold text-muted-foreground w-4 text-center">{idx + 1}</div>
                     {livro.capa_url ? (
-                      <img src={livro.capa_url} alt={livro.titulo} className="w-6 h-8 rounded object-cover shadow-sm bg-muted flex-shrink-0" />
+                      <img
+                        src={livro.capa_url}
+                        alt={livro.titulo}
+                        className="w-6 h-8 rounded object-cover shadow-sm bg-muted flex-shrink-0 clickable-image"
+                        onClick={() => openLightbox(livro.capa_url!, livro.titulo)}
+                      />
                     ) : (
                       <div className="w-6 h-8 rounded bg-amber-100 flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
                         <BookOpen className="h-3 w-3" />
@@ -385,6 +403,14 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxUrl}
+        alt={lightboxAlt}
+        open={!!lightboxUrl}
+        onClose={() => setLightboxUrl("")}
+      />
     </div>
   );
 };

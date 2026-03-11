@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { BookOpen, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import ImageLightbox from "@/components/ImageLightbox";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,7 +74,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="min-h-screen flex w-full relative z-10">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center justify-between border-b border-border bg-card px-4 sticky top-0 z-10">
+          <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-md px-4 sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="mr-2" />
               <BookOpen className="h-5 w-5 text-primary" />
@@ -81,7 +83,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="Perfil" className="w-8 h-8 rounded-full object-cover shadow-sm" />
+                  <img
+                    src={avatarUrl}
+                    alt="Perfil"
+                    className="w-8 h-8 rounded-full object-cover shadow-sm clickable-image"
+                    onClick={() => setLightboxOpen(true)}
+                  />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
                     {userName.charAt(0).toUpperCase()}
@@ -99,6 +106,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={avatarUrl}
+        alt={userName || "Foto de perfil"}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </SidebarProvider>
   );
 };

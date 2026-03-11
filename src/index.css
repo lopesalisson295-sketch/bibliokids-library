@@ -4,29 +4,29 @@
 
 @layer base {
   :root {
-    /* Soft warm peachy background (darkened to assure it isn't seen as white) */
-    --background: 32 80% 92%;
-    --foreground: 220 20% 20%;
+    /* Elegant warm background — soft cream with a touch of peach */
+    --background: 34 65% 95%;
+    --foreground: 222 22% 18%;
 
-    /* Keep cards white for clean reading */
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 20%;
+    /* Cards with a very subtle warm white */
+    --card: 36 30% 99%;
+    --card-foreground: 222 22% 18%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 20%;
+    --popover: 36 30% 99%;
+    --popover-foreground: 222 22% 18%;
 
     /* Vibrant primary orange */
     --primary: 38 92% 50%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary warm tone */
-    --secondary: 35 80% 92%;
-    --secondary-foreground: 220 20% 20%;
+    --secondary: 35 55% 93%;
+    --secondary-foreground: 222 22% 18%;
 
-    --muted: 35 60% 92%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 35 40% 93%;
+    --muted-foreground: 222 10% 46%;
 
-    --accent: 38 90% 95%;
+    --accent: 38 70% 95%;
     --accent-foreground: 38 92% 35%;
 
     --destructive: 0 84% 60%;
@@ -38,20 +38,20 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --border: 35 30% 88%;
-    --input: 35 30% 88%;
+    --border: 35 25% 90%;
+    --input: 35 25% 90%;
     --ring: 38 92% 50%;
 
     --radius: 0.75rem;
 
-    /* Sidebar slightly warmer than pure white to blend nicely */
-    --sidebar-background: 35 60% 99%;
-    --sidebar-foreground: 220 15% 30%;
+    /* Sidebar — clean warm white */
+    --sidebar-background: 36 40% 98%;
+    --sidebar-foreground: 222 15% 28%;
     --sidebar-primary: 38 92% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 80% 95%;
+    --sidebar-accent: 35 60% 95%;
     --sidebar-accent-foreground: 38 92% 40%;
-    --sidebar-border: 35 40% 90%;
+    --sidebar-border: 35 30% 92%;
     --sidebar-ring: 38 92% 50%;
   }
 
@@ -290,18 +290,19 @@
 
 .animated-bg-gradient-vibrant {
   background: linear-gradient(135deg,
-      hsl(38, 100%, 94%) 0%,
-      hsl(32, 95%, 90%) 25%,
-      hsl(38, 90%, 92%) 50%,
-      hsl(30, 95%, 88%) 75%,
-      hsl(38, 100%, 94%) 100%);
+      hsl(38, 80%, 96%) 0%,
+      hsl(32, 70%, 93%) 25%,
+      hsl(38, 65%, 95%) 50%,
+      hsl(30, 70%, 92%) 75%,
+      hsl(38, 80%, 96%) 100%);
 }
 
 .animated-bg-gradient-subtle {
-  background: linear-gradient(160deg,
-      hsl(35, 80%, 94%) 0%,
-      hsl(32, 75%, 91%) 50%,
-      hsl(38, 70%, 95%) 100%);
+  background: linear-gradient(150deg,
+      hsl(34, 55%, 96%) 0%,
+      hsl(30, 50%, 94%) 35%,
+      hsl(36, 45%, 95%) 65%,
+      hsl(32, 50%, 96%) 100%);
 }
 
 .animated-bg-shapes {
@@ -497,4 +498,106 @@
     cx: 750;
     cy: 350;
   }
+}
+
+/* ========================================
+   Image Lightbox
+   ======================================== */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: lightbox-fade-in 0.2s ease-out;
+  cursor: pointer;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: default;
+  animation: lightbox-scale-in 0.25s ease-out;
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-caption {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  max-width: 80vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes lightbox-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightbox-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Clickable image styling */
+.clickable-image {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

@@ -28,7 +28,7 @@ const ANIM_CLASSES = [
 
 const AnimatedBackground = ({ variant = "vibrant" }: AnimatedBackgroundProps) => {
     const isSubtle = variant === "subtle";
-    const count = isSubtle ? 12 : 20;
+    const count = isSubtle ? 8 : 20;
     const icons = isSubtle ? ICONS_SUBTLE : ICONS_VIBRANT;
 
     const items: FloatingItem[] = useMemo(() => {
@@ -40,7 +40,7 @@ const AnimatedBackground = ({ variant = "vibrant" }: AnimatedBackgroundProps) =>
             top: `${(i * 29 + 7) % 100}%`,
             animClass: ANIM_CLASSES[i % ANIM_CLASSES.length],
             delay: `${(i * 1.3) % 8}s`,
-            opacity: isSubtle ? 0.04 + (i % 3) * 0.02 : 0.15 + (i % 4) * 0.05,
+            opacity: isSubtle ? 0.025 + (i % 3) * 0.015 : 0.15 + (i % 4) * 0.05,
         }));
     }, [isSubtle, count, icons]);
 

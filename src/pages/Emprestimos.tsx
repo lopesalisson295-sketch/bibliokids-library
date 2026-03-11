@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isAfter } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type Emprestimo = Tables<"emprestimos">;
 type Livro = Tables<"livros">;
@@ -41,7 +42,14 @@ const Emprestimos = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ aluno_id: "", livro_id: "", dias: localStorage.getItem("bk_default_days") || "14" });
+  const [lightboxUrl, setLightboxUrl] = useState("");
+  const [lightboxAlt, setLightboxAlt] = useState("");
   const { toast } = useToast();
+
+  const openLightbox = (url: string, alt: string) => {
+    setLightboxUrl(url);
+    setLightboxAlt(alt);
+  };
 
   useEffect(() => {
     fetchAll();
@@ -225,7 +233,12 @@ const Emprestimos = () => {
                 <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0 flex-1">
                     {emp.livro_capa_url ? (
-                      <img src={emp.livro_capa_url} alt={emp.livro_titulo} className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0" />
+                      <img
+                        src={emp.livro_capa_url}
+                        alt={emp.livro_titulo}
+                        className="w-16 h-24 object-cover rounded shadow-sm flex-shrink-0 clickable-image"
+                        onClick={() => openLightbox(emp.livro_capa_url!, emp.livro_titulo)}
+                      />
                     ) : (
                       <div className={`w-16 h-24 rounded flex items-center justify-center flex-shrink-0 shadow-sm ${realStatus === "ativo" ? "bg-blue-100" : realStatus === "atrasado" ? "bg-red-100" : "bg-emerald-100"}`}>
                         <ArrowLeftRight className={`h-6 w-6 ${realStatus === "ativo" ? "text-blue-600" : realStatus === "atrasado" ? "text-red-600" : "text-emerald-600"}`} />
@@ -240,16 +253,21 @@ const Emprestimos = () => {
                         <p className="text-sm text-foreground/80 mb-2">Por {emp.livro_autor}</p>
                       )}
 
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
-                        <div className="text-xs"><span className="text-muted-foreground">Ano:</span> {emp.livro_ano || "—"}</div>
-                        <div className="text-xs"><span className="text-muted-foreground">Gênero:</span> {emp.livro_genero || "—"}</div>
-                        <div className="text-xs"><span className="text-muted-foreground">Editora:</span> {emp.livro_editora || "—"}</div>
-                        <div className="text-xs"><span className="text-muted-foreground">ISBN:</span> {emp.livro_isbn || "—"}</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 mb-3">
+                        <div className="text-xs truncate"><span className="text-muted-foreground">Ano:</span> {emp.livro_ano || "—"}</div>
+                        <div className="text-xs truncate"><span className="text-muted-foreground">Gênero:</span> {emp.livro_genero || "—"}</div>
+                        <div className="text-xs truncate"><span className="text-muted-foreground">Editora:</span> {emp.livro_editora || "—"}</div>
+                        <div className="text-xs truncate"><span className="text-muted-foreground">ISBN:</span> {emp.livro_isbn || "—"}</div>
                       </div>
 
                       <div className="bg-muted/40 p-2.5 rounded-md mt-2 flex items-center gap-3 border border-border/50">
                         {emp.aluno_foto_url ? (
-                          <img src={emp.aluno_foto_url} alt={emp.aluno_nome} className="w-10 h-10 rounded-full object-cover shadow-sm bg-muted flex-shrink-0" />
+                          <img
+                            src={emp.aluno_foto_url}
+                            alt={emp.aluno_nome}
+                            className="w-10 h-10 rounded-full object-cover shadow-sm bg-muted flex-shrink-0 clickable-image"
+                            onClick={() => openLightbox(emp.aluno_foto_url!, emp.aluno_nome)}
+                          />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
                             {emp.aluno_nome.charAt(0).toUpperCase()}
@@ -421,6 +439,14 @@ const Emprestimos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxUrl}
+        alt={lightboxAlt}
+        open={!!lightboxUrl}
+        onClose={() => setLightboxUrl("")}
+      />
     </div>
   );
 };

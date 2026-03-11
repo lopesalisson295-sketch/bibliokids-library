@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { uploadImage } from "@/utils/uploadImage";
 import { format, isAfter } from "date-fns";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type Aluno = Tables<"alunos">;
 
@@ -35,7 +36,14 @@ const Alunos = () => {
   const [historyAluno, setHistoryAluno] = useState<Aluno | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [lightboxUrl, setLightboxUrl] = useState("");
+  const [lightboxAlt, setLightboxAlt] = useState("");
   const { toast } = useToast();
+
+  const openLightbox = (url: string, alt: string) => {
+    setLightboxUrl(url);
+    setLightboxAlt(alt);
+  };
 
   useEffect(() => {
     fetchAlunos();
@@ -258,7 +266,12 @@ const Alunos = () => {
                     <CardContent className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
                         {aluno.foto_url ? (
-                          <img src={aluno.foto_url} alt={aluno.nome} className="w-10 h-10 rounded-full object-cover shadow-sm flex-shrink-0" />
+                          <img
+                            src={aluno.foto_url}
+                            alt={aluno.nome}
+                            className="w-10 h-10 rounded-full object-cover shadow-sm flex-shrink-0 clickable-image"
+                            onClick={() => openLightbox(aluno.foto_url!, aluno.nome)}
+                          />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                             {aluno.nome.charAt(0).toUpperCase()}
@@ -472,6 +485,14 @@ const Alunos = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxUrl}
+        alt={lightboxAlt}
+        open={!!lightboxUrl}
+        onClose={() => setLightboxUrl("")}
+      />
     </div>
   );
 };
