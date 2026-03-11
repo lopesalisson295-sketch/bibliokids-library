@@ -351,14 +351,14 @@ const Acervo = () => {
           if (v.categories) allCats.push(...v.categories);
         }
 
-        // BrasilAPI (com providers brasileiros)
+        // BrasilAPI (com providers brasileiros) — PRIORIDADE para dados em PT-BR
         const bd = brasilR.status === "fulfilled" ? brasilR.value : null;
         if (bd && !bd.message) {
-          if (!b.titulo && bd.title) b.titulo = bd.title;
-          if (!b.autor && bd.authors?.length > 0) b.autor = bd.authors.join(", ");
-          if (!b.editora && bd.publisher) b.editora = bd.publisher;
+          if (bd.title) b.titulo = bd.title; // Sempre prefere título em PT-BR
+          if (bd.authors?.length > 0) b.autor = bd.authors.join(", ");
+          if (bd.publisher) b.editora = bd.publisher;
           if (!b.ano && bd.year) b.ano = String(bd.year);
-          if (!b.capa_url && bd.cover_url) b.capa_url = bd.cover_url;
+          if (bd.cover_url) b.capa_url = bd.cover_url;
           if (bd.synopsis) b.descricao = bd.synopsis || b.descricao;
           if (bd.subjects?.length > 0) {
             allCats.push(...bd.subjects.filter((s: string) => !s.startsWith("series:")));

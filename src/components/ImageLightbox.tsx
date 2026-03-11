@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ImageLightboxProps {
@@ -24,7 +25,7 @@ const ImageLightbox = ({ src, alt = "Imagem", open, onClose }: ImageLightboxProp
 
     if (!open || !src) return null;
 
-    return (
+    return createPortal(
         <div
             className="lightbox-overlay"
             onClick={onClose}
@@ -49,7 +50,8 @@ const ImageLightbox = ({ src, alt = "Imagem", open, onClose }: ImageLightboxProp
                     <p className="lightbox-caption">{alt}</p>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
