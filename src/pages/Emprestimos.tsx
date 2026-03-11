@@ -253,11 +253,11 @@ const Emprestimos = () => {
                         <p className="text-sm text-foreground/80 mb-2">Por {emp.livro_autor}</p>
                       )}
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 mb-3">
-                        <div className="text-xs truncate"><span className="text-muted-foreground">Ano:</span> {emp.livro_ano || "—"}</div>
-                        <div className="text-xs truncate"><span className="text-muted-foreground">Gênero:</span> {emp.livro_genero || "—"}</div>
-                        <div className="text-xs truncate"><span className="text-muted-foreground">Editora:</span> {emp.livro_editora || "—"}</div>
-                        <div className="text-xs truncate"><span className="text-muted-foreground">ISBN:</span> {emp.livro_isbn || "—"}</div>
+                      <div className="flex flex-col gap-1 text-xs mb-3">
+                        <div className="break-words"><span className="text-muted-foreground font-medium">Ano:</span> {emp.livro_ano || "—"}</div>
+                        <div className="break-words"><span className="text-muted-foreground font-medium">Gênero:</span> {emp.livro_genero || "—"}</div>
+                        <div className="break-words"><span className="text-muted-foreground font-medium">Editora:</span> {emp.livro_editora || "—"}</div>
+                        <div className="break-words"><span className="text-muted-foreground font-medium">ISBN:</span> {emp.livro_isbn || "—"}</div>
                       </div>
 
                       <div className="bg-muted/40 p-2.5 rounded-md mt-2 flex items-center gap-3 border border-border/50">
@@ -352,7 +352,12 @@ const Emprestimos = () => {
                 return (
                   <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg border border-border mt-3">
                     {al.foto_url ? (
-                      <img src={al.foto_url} alt={al.nome} className="w-10 h-10 object-cover rounded-full shadow-sm" />
+                      <img
+                        src={al.foto_url}
+                        alt={al.nome}
+                        className="w-10 h-10 object-cover rounded-full shadow-sm clickable-image"
+                        onClick={() => openLightbox(al.foto_url!, al.nome)}
+                      />
                     ) : (
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 flex justify-center items-center rounded-full text-white font-bold">
                         {al.nome.charAt(0).toUpperCase()}
@@ -400,7 +405,12 @@ const Emprestimos = () => {
                 return (
                   <div className="flex items-start gap-3 p-3 bg-muted/40 rounded-lg border border-border mt-3">
                     {bl.capa_url ? (
-                      <img src={bl.capa_url} alt={bl.titulo} className="w-12 h-16 object-cover rounded shadow-sm" />
+                      <img
+                        src={bl.capa_url}
+                        alt={bl.titulo}
+                        className="w-12 h-16 object-cover rounded shadow-sm clickable-image"
+                        onClick={() => openLightbox(bl.capa_url!, bl.titulo)}
+                      />
                     ) : (
                       <div className="w-12 h-16 bg-blue-100 flex justify-center items-center rounded text-blue-500">
                         <BookOpen size={20} />

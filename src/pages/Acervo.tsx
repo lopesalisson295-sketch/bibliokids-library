@@ -769,13 +769,11 @@ const Acervo = () => {
                         <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2">{livro.titulo}</h3>
                         <p className="text-sm text-foreground/80 mt-1 truncate"><span className="text-muted-foreground">Autor:</span> {livro.autor}</p>
 
-                        <div className="flex flex-col gap-1 mt-3 bg-muted/30 p-2 rounded">
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                            <p className="text-xs truncate"><span className="text-muted-foreground">Gênero:</span> {livro.genero || "—"}</p>
-                            <p className="text-xs truncate"><span className="text-muted-foreground">Ano:</span> {livro.ano_publicacao || "—"}</p>
-                            <p className="text-xs truncate"><span className="text-muted-foreground">Editora:</span> {livro.editora || "—"}</p>
-                            <p className="text-xs truncate"><span className="text-muted-foreground">ISBN:</span> {livro.isbn || "—"}</p>
-                          </div>
+                        <div className="flex flex-col gap-1.5 mt-3 bg-muted/30 p-2.5 rounded text-xs">
+                          <p className="break-words"><span className="text-muted-foreground font-medium">Gênero:</span> {livro.genero || "—"}</p>
+                          <p className="break-words"><span className="text-muted-foreground font-medium">Ano:</span> {livro.ano_publicacao || "—"}</p>
+                          <p className="break-words"><span className="text-muted-foreground font-medium">Editora:</span> {livro.editora || "—"}</p>
+                          <p className="break-words"><span className="text-muted-foreground font-medium">ISBN:</span> {livro.isbn || "—"}</p>
                         </div>
                       </div>
                     </div>
