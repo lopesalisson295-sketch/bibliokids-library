@@ -297,7 +297,7 @@ const Acervo = () => {
         return best;
       };
 
-      const extractTranslators = (names: any[]): { authors: string, translators: string } => {
+      const extractTranslators = (names: any[], knownAuthors?: string[]): { authors: string, translators: string } => {
         if (!names || !Array.isArray(names) || names.length === 0) return { authors: "", translators: "" };
         const authorsList: string[] = [];
         const translatorsList: string[] = [];
@@ -307,6 +307,15 @@ const Acervo = () => {
           if (!cleanName) return;
           if (/traduto|translato|traduçã/i.test(cleanName)) {
             translatorsList.push(cleanName.replace(/\s*\(\s*(Tradutor|Translator|Tradução|Trad)\s*\)/i, "").trim());
+          } else if (knownAuthors && knownAuthors.length > 0 && names.length > knownAuthors.length) {
+            // Se veio uma lista de autores originais (ex: do Google) e essa lista atual tem MAIS pessoas,
+            // quem NÃO está na lista original provavelmente é o tradutor!
+            const isOriginalAuthor = knownAuthors.some(ka => ka.toLowerCase().includes(cleanName.toLowerCase()) || cleanName.toLowerCase().includes(ka.toLowerCase()));
+            if (!isOriginalAuthor) {
+              translatorsList.push(cleanName);
+            } else {
+              authorsList.push(cleanName);
+            }
           } else {
             authorsList.push(cleanName);
           }
@@ -396,8 +405,10 @@ const Acervo = () => {
         if (bd && !bd.message) {
           if (bd.title) { b.titulo = bd.title; b.score += 10; } // Maior confiança para dados BR
           if (bd.authors?.length > 0) {
-            const ext = extractTranslators(bd.authors);
-            b.autor = ext.authors;
+            // Se o Google achar os autores originais, passamos para a BrasilAPI usar como crivo
+            const knownOriginals = bestGoogle?.volumeInfo?.authors || [];
+            const ext = extractTranslators(bd.authors, knownOriginals);
+            b.autor = ext.authors || b.autor;
             if (ext.translators) b.tradutor = ext.translators;
           }
           if (bd.publisher) b.editora = bd.publisher;
