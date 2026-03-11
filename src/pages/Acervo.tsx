@@ -297,15 +297,18 @@ const Acervo = () => {
         return best;
       };
 
-      const extractTranslators = (names: string[]): { authors: string, translators: string } => {
-        if (!names || names.length === 0) return { authors: "", translators: "" };
+      const extractTranslators = (names: any[]): { authors: string, translators: string } => {
+        if (!names || !Array.isArray(names) || names.length === 0) return { authors: "", translators: "" };
         const authorsList: string[] = [];
         const translatorsList: string[] = [];
         names.forEach(name => {
-          if (/traduto|translato|traduçã/i.test(name)) {
-            translatorsList.push(name.replace(/\s*\(\s*(Tradutor|Translator|Tradução|Trad)\s*\)/i, "").trim());
+          if (typeof name !== 'string') return;
+          const cleanName = name.replace(/,\s*$/, "").trim(); // Removendo vírgula sobressalente do final!
+          if (!cleanName) return;
+          if (/traduto|translato|traduçã/i.test(cleanName)) {
+            translatorsList.push(cleanName.replace(/\s*\(\s*(Tradutor|Translator|Tradução|Trad)\s*\)/i, "").trim());
           } else {
-            authorsList.push(name.trim());
+            authorsList.push(cleanName);
           }
         });
         return {
@@ -534,7 +537,11 @@ const Acervo = () => {
               const doc = sd?.docs?.[0];
               if (!doc) return;
               if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
-              if (!bookData.autor && doc.author_name) bookData.autor = doc.author_name.join(", ");
+              if (doc.author_name) {
+                const ext = extractTranslators(doc.author_name);
+                if (!bookData.autor && ext.authors) bookData.autor = ext.authors;
+                if (!bookData.tradutor && ext.translators) bookData.tradutor = ext.translators;
+              }
               if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
               if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
               if (!bookData.genero && doc.subject) {
