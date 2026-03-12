@@ -731,12 +731,13 @@ const Acervo = () => {
       const qParts = [];
       if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
       if (autorLimpo) qParts.push(`inauthor:${autorLimpo}`);
-      const queryStr = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : (form.titulo || form.autor));
+      const queryStrGoogle = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : (form.titulo || form.autor));
+      const queryStrOL = encodeURIComponent((form.titulo + " " + form.autor).trim());
 
       const [googlePtR, googleR, olR] = await Promise.allSettled([
-        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&langRestrict=pt&maxResults=4`),
-        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&maxResults=4`),
-        safeFetchJson(`https://openlibrary.org/search.json?${form.titulo ? `title=${encodeURIComponent(form.titulo)}` : ''}${form.autor ? `&author=${encodeURIComponent(form.autor)}` : ''}&limit=2`)
+        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStrGoogle}&langRestrict=pt&maxResults=4`),
+        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStrGoogle}&maxResults=4`),
+        safeFetchJson(`https://openlibrary.org/search.json?q=${queryStrOL}&limit=3`)
       ]);
 
       const gPt = googlePtR.status === "fulfilled" ? googlePtR.value : null;
@@ -745,9 +746,11 @@ const Acervo = () => {
       let bestGoogle = gPt?.items?.length > 0 ? gPt.items[0] : (gd?.items?.length > 0 ? gd.items[0] : null);
 
       let bookData = { titulo: form.titulo, autor: form.autor, tradutor: form.tradutor, editora: form.editora, ano: form.ano_publicacao, genero: form.genero, capa_url: form.capa_url, isbn: form.isbn };
+      let newDataFound = false;
 
       if (bestGoogle) {
         const v = bestGoogle.volumeInfo;
+        newDataFound = true;
         if (!bookData.titulo && v.title) bookData.titulo = v.title + (v.subtitle ? ": " + v.subtitle : "");
         if (!bookData.autor && v.authors) bookData.autor = v.authors.join(", ");
         if (!bookData.editora && v.publisher) bookData.editora = v.publisher;
@@ -767,10 +770,12 @@ const Acervo = () => {
       const olData = olR.status === "fulfilled" ? olR.value : null;
       if (olData && olData.docs && olData.docs.length > 0) {
         const doc = olData.docs[0];
+        newDataFound = true;
         if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
         if (!bookData.autor && doc.author_name) bookData.autor = doc.author_name[0];
         if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
         if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+        if (!bookData.ano && doc.first_publish_year) bookData.ano = String(doc.first_publish_year);
       }
 
       setForm(prev => ({
@@ -784,7 +789,11 @@ const Acervo = () => {
         isbn: bookData.isbn || prev.isbn,
       }));
 
-      toast({ title: "✅ Busca concluída", description: "Dados adicionais preenchidos com sucesso." });
+      if (newDataFound) {
+        toast({ title: "✅ Busca concluída", description: "Dados adicionais preenchidos com sucesso." });
+      } else {
+        toast({ title: "Sem resultados", description: "Infelizmente não encontramos nenhum dado a mais com esse título e/ou autor nas bases de dados.", variant: "destructive" });
+      }
     } catch (error) {
       toast({ title: "Erro na busca", description: "Ocorreu um erro inesperado ao buscar dados adicionais.", variant: "destructive" });
     } finally {
