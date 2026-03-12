@@ -611,8 +611,10 @@ const Acervo = () => {
 
       if (bookData.titulo && (!bookData.capa_url || !bookData.genero || isLikelyForeign)) {
         // CORREÇÃO: Usar intitle e inauthor corretamente em vez de misturar
-        const tituloLimpo = bookData.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, '');
-        const autorLimpo = bookData.autor.replace(/[^\w\s\u00C0-\u00FF]/gi, '');
+        const tituloLimpo = bookData.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
+        const primeiroAutor = bookData.autor.split(',')[0].trim();
+        const autorLimpo = primeiroAutor.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
+        
         const qParts = [];
         if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
         if (autorLimpo && autorLimpo !== "Autor Desconhecido") qParts.push(`inauthor:${autorLimpo}`);
@@ -726,13 +728,15 @@ const Acervo = () => {
         } catch { return null; }
       };
 
-      const tituloLimpo = form.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, '').trim();
-      const autorLimpo = form.autor.replace(/[^\w\s\u00C0-\u00FF]/gi, '').trim();
+      const tituloLimpo = form.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
+      const primeiroAutor = form.autor.split(',')[0].trim();
+      const autorLimpo = primeiroAutor.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
+      
       const qParts = [];
       if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
       if (autorLimpo) qParts.push(`inauthor:${autorLimpo}`);
       const queryStrGoogle = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : (form.titulo || form.autor));
-      const queryStrOL = encodeURIComponent((form.titulo + " " + form.autor).trim());
+      const queryStrOL = encodeURIComponent((form.titulo + " " + primeiroAutor).trim());
 
       const [googlePtR, googleR, olR] = await Promise.allSettled([
         safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStrGoogle}&langRestrict=pt&maxResults=4`),
