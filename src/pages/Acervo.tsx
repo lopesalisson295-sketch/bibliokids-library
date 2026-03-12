@@ -543,8 +543,9 @@ const Acervo = () => {
 
         // OpenLibrary Search (gênero + capa fallback)
         if (needsGenre || needsCover) {
+          const olQuery = bookData.titulo ? `title=${encodeURIComponent(bookData.titulo)}${bookData.autor ? `&author=${encodeURIComponent(bookData.autor)}` : ''}` : `isbn=${correctedIsbn}`;
           wave2.push(
-            safeFetchJson(`https://openlibrary.org/search.json?isbn=${correctedIsbn}&limit=1`).then(async (sd) => {
+            safeFetchJson(`https://openlibrary.org/search.json?${olQuery}&limit=1`).then(async (sd) => {
               const doc = sd?.docs?.[0];
               if (!doc) return;
               if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
@@ -609,7 +610,14 @@ const Acervo = () => {
       const isLikelyForeign = validResults.length > 0 && validResults[0].data.score < 10;
 
       if (bookData.titulo && (!bookData.capa_url || !bookData.genero || isLikelyForeign)) {
-        const queryStr = encodeURIComponent(`inauthor:${bookData.autor} ${bookData.titulo}`);
+        // CORREÇÃO: Usar intitle e inauthor corretamente em vez de misturar
+        const tituloLimpo = bookData.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, '');
+        const autorLimpo = bookData.autor.replace(/[^\w\s\u00C0-\u00FF]/gi, '');
+        const qParts = [];
+        if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
+        if (autorLimpo && autorLimpo !== "Autor Desconhecido") qParts.push(`inauthor:${autorLimpo}`);
+        const queryStr = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : bookData.titulo);
+
         const gData = await safeFetchJson(
           `https://www.googleapis.com/books/v1/volumes?q=${queryStr}&langRestrict=pt&maxResults=5`
         );
@@ -697,6 +705,92 @@ const Acervo = () => {
     }
   };
 
+  const fetchBookByTitleAndAuthor = async () => {
+    if (!form.titulo.trim() && !form.autor.trim()) {
+      toast({ title: "Preencha o título ou autor", description: "Digite pelo menos o título ou o autor.", variant: "destructive" });
+      return;
+    }
+
+    setFetchingIsbn(true);
+    try {
+      const fetchWithTimeout = (url: string, ms = 7000) => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), ms);
+        return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+      };
+
+      const safeFetchJson = async (url: string) => {
+        try {
+          const r = await fetchWithTimeout(url, 7000);
+          return r.ok ? await r.json() : null;
+        } catch { return null; }
+      };
+
+      const tituloLimpo = form.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, '').trim();
+      const autorLimpo = form.autor.replace(/[^\w\s\u00C0-\u00FF]/gi, '').trim();
+      const qParts = [];
+      if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
+      if (autorLimpo) qParts.push(`inauthor:${autorLimpo}`);
+      const queryStr = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : (form.titulo || form.autor));
+
+      const [googlePtR, googleR, olR] = await Promise.allSettled([
+        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&langRestrict=pt&maxResults=4`),
+        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&maxResults=4`),
+        safeFetchJson(`https://openlibrary.org/search.json?${form.titulo ? `title=${encodeURIComponent(form.titulo)}` : ''}${form.autor ? `&author=${encodeURIComponent(form.autor)}` : ''}&limit=2`)
+      ]);
+
+      const gPt = googlePtR.status === "fulfilled" ? googlePtR.value : null;
+      const gd = googleR.status === "fulfilled" ? googleR.value : null;
+
+      let bestGoogle = gPt?.items?.length > 0 ? gPt.items[0] : (gd?.items?.length > 0 ? gd.items[0] : null);
+
+      let bookData = { titulo: form.titulo, autor: form.autor, tradutor: form.tradutor, editora: form.editora, ano: form.ano_publicacao, genero: form.genero, capa_url: form.capa_url, isbn: form.isbn };
+
+      if (bestGoogle) {
+        const v = bestGoogle.volumeInfo;
+        if (!bookData.titulo && v.title) bookData.titulo = v.title + (v.subtitle ? ": " + v.subtitle : "");
+        if (!bookData.autor && v.authors) bookData.autor = v.authors.join(", ");
+        if (!bookData.editora && v.publisher) bookData.editora = v.publisher;
+        if (!bookData.ano && v.publishedDate) bookData.ano = v.publishedDate.substring(0, 4);
+        if (!bookData.capa_url && v.imageLinks) {
+            bookData.capa_url = (v.imageLinks.extraLarge || v.imageLinks.large || v.imageLinks.medium || v.imageLinks.thumbnail || "").replace("http:", "https:").replace("&edge=curl", "");
+        }
+        if (!bookData.isbn && v.industryIdentifiers) {
+           const id = v.industryIdentifiers.find((i: any) => i.type === "ISBN_13") || v.industryIdentifiers.find((i: any) => i.type === "ISBN_10");
+           if (id) bookData.isbn = id.identifier;
+        }
+        if (!bookData.genero && v.categories && v.categories.length > 0) {
+            bookData.genero = v.categories[0]; 
+        }
+      }
+
+      const olData = olR.status === "fulfilled" ? olR.value : null;
+      if (olData && olData.docs && olData.docs.length > 0) {
+        const doc = olData.docs[0];
+        if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
+        if (!bookData.autor && doc.author_name) bookData.autor = doc.author_name[0];
+        if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
+        if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+      }
+
+      setForm(prev => ({
+        ...prev,
+        titulo: bookData.titulo || prev.titulo,
+        autor: bookData.autor || prev.autor,
+        editora: bookData.editora || prev.editora,
+        ano_publicacao: bookData.ano || prev.ano_publicacao,
+        capa_url: bookData.capa_url || prev.capa_url,
+        genero: bookData.genero || prev.genero,
+        isbn: bookData.isbn || prev.isbn,
+      }));
+
+      toast({ title: "✅ Busca concluída", description: "Dados adicionais preenchidos com sucesso." });
+    } catch (error) {
+      toast({ title: "Erro na busca", description: "Ocorreu um erro inesperado ao buscar dados adicionais.", variant: "destructive" });
+    } finally {
+      setFetchingIsbn(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -1007,31 +1101,50 @@ const Acervo = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="titulo">Título *</Label>
-              <Input id="titulo" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Nome do livro" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="autor">Autor *</Label>
-                <Input id="autor" value={form.autor} onChange={(e) => setForm({ ...form, autor: e.target.value })} placeholder="Nome do autor" />
+            <div className="space-y-4 p-4 rounded-xl border border-border/60 bg-slate-50/50 shadow-sm relative">
+              <div className="absolute top-0 right-0 bg-slate-100 px-3 py-1 rounded-bl-lg rounded-tr-xl border-b border-l border-border/60 text-[10px] font-medium text-slate-500">
+                Sem ISBN?
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="titulo" className="text-slate-800">Título *</Label>
+                <Input id="titulo" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Nome do livro" className="bg-white" />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="autor" className="text-slate-800">Autor *</Label>
+                  <Input id="autor" value={form.autor} onChange={(e) => setForm({ ...form, autor: e.target.value })} placeholder="Nome do autor" className="bg-white" />
+                </div>
+                <div className="space-y-2 flex items-end">
+                  <Button 
+                    type="button" 
+                    className="w-full bg-slate-700 hover:bg-slate-800 text-white shadow"
+                    onClick={fetchBookByTitleAndAuthor}
+                    disabled={fetchingIsbn || (!form.titulo && !form.autor)}
+                  >
+                    <Search className="mr-2 h-4 w-4" /> {fetchingIsbn ? "Buscando..." : "Buscar Título/Autor"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tradutor">Tradutor</Label>
                 <Input id="tradutor" value={form.tradutor} onChange={(e) => setForm({ ...form, tradutor: e.target.value })} placeholder="Nome do tradutor" />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="editora">Editora</Label>
                 <Input id="editora" value={form.editora} onChange={(e) => setForm({ ...form, editora: e.target.value })} placeholder="Editora" />
               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="genero">Gênero</Label>
                 <Input id="genero" value={form.genero} onChange={(e) => setForm({ ...form, genero: e.target.value })} placeholder="Ex: Aventura" />
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ano">Ano de Publicação</Label>
                 <Input id="ano" type="number" value={form.ano_publicacao} onChange={(e) => setForm({ ...form, ano_publicacao: e.target.value })} placeholder="Ex: 2024" />
