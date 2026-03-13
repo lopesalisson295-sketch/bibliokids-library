@@ -1,8 +1,18 @@
 import { Link } from "react-router-dom";
-import { BookOpen, GraduationCap, Heart, Library, ArrowRight } from "lucide-react";
+import { BookOpen, GraduationCap, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const LandingPage = () => {
+  const [lightboxUrl, setLightboxUrl] = useState("");
+  const [lightboxAlt, setLightboxAlt] = useState("");
+
+  const openLightbox = (url: string, alt: string) => {
+    setLightboxUrl(url);
+    setLightboxAlt(alt);
+  };
+
   return (
     <div className="min-h-screen bg-background overflow-hidden font-sans">
       {/* Header */}
@@ -59,8 +69,8 @@ const LandingPage = () => {
           </div>
           
           <div className="relative">
-            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 bg-black/10 flex items-center justify-center">
-              <img src="/images/historia1.jpg" alt="Alunos da Escola Yolanda Queiroz" className="w-full h-full object-cover" onError={(e) => { 
+            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 bg-black/10 flex items-center justify-center cursor-pointer" onClick={() => openLightbox("/images/Fachada da escola - Yolanda.jpg", "Fachada da Escola Yolanda Queiroz")}>
+              <img src="/images/Fachada da escola - Yolanda.jpg" alt="Fachada da Escola Yolanda Queiroz" className="w-full h-full object-cover" onError={(e) => { 
                 e.currentTarget.style.display = 'none'; 
                 e.currentTarget.parentElement?.classList.add('bg-white/5');
               }} />
@@ -91,19 +101,19 @@ const LandingPage = () => {
           {/* Portfólio de Imagens */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 pb-12">
              <div className="md:col-span-2 row-span-2 rounded-3xl overflow-hidden shadow-xl group flex items-center justify-center min-h-[300px] md:min-h-[500px]">
-                <img src="/images/historia1.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/images/galeria_escola_yolanda_queiroz_01.jpg" alt="Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer" onClick={() => openLightbox("/images/galeria_escola_yolanda_queiroz_01.jpg", "Escola Yolanda Queiroz")} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
              <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
-                <img src="/images/historia2.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/images/yolanda_800.jpg" alt="Dona Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer" onClick={() => openLightbox("/images/yolanda_800.jpg", "Dona Yolanda Queiroz")} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
              <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
-                <img src="/images/historia3.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/images/foto da escola.jpg" alt="Fachada da Escola" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer" onClick={() => openLightbox("/images/foto da escola.jpg", "Fachada da Escola")} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
              <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
-                <img src="/images/historia4.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/images/Foto-05_Lucas-Plutarcho-1-1024x683.jpg" alt="Estrutura da Escola" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer" onClick={() => openLightbox("/images/Foto-05_Lucas-Plutarcho-1-1024x683.jpg", "Estrutura da Escola")} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
              <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-lg group h-48 md:h-auto flex items-center justify-center">
-                <img src="/images/historia5.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <img src="/images/1725573806879.jpeg" alt="Alunos" className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105 cursor-pointer" onClick={() => openLightbox("/images/1725573806879.jpeg", "Alunos")} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
           </div>
         </div>
@@ -142,6 +152,14 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxUrl}
+        alt={lightboxAlt}
+        open={!!lightboxUrl}
+        onClose={() => setLightboxUrl("")}
+      />
     </div>
   );
 };
