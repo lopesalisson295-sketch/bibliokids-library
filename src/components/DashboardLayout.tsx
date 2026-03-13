@@ -61,8 +61,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="flex flex-col min-h-screen items-center justify-center">
         <AnimatedBackground variant="subtle" />
         <div className="relative z-10 flex flex-col items-center">
-          <Loader2 className="h-12 w-12 text-amber-500 animate-spin mb-3" />
-          <p className="text-amber-600 text-sm font-medium">Carregando...</p>
+          <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
+          <p className="text-primary text-sm font-medium">Carregando...</p>
         </div>
       </div>
     );
@@ -77,8 +77,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-md px-4 sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="mr-2" />
-              <BookOpen className="h-5 w-5 text-primary" />
-              <span className="text-lg font-bold text-primary hidden sm:inline">BiblioKids</span>
+              <img src="/images/logo-unifor.png" alt="Unifor" className="h-6 object-contain hidden sm:inline" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <span className="text-lg font-bold text-primary hidden sm:inline">Acervo Yolanda</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -90,7 +90,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     onClick={() => setLightboxOpen(true)}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs shadow-sm">
                     {userName.charAt(0).toUpperCase()}
                   </div>
                 )}

@@ -206,8 +206,8 @@ const Configuracoes = () => {
       <Card className="border-0 shadow-sm bg-muted/30">
         <CardContent className="py-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">BiblioKids</p>
-            <p className="text-xs text-muted-foreground">v1.0.0 — Sistema de Biblioteca Infantil</p>
+            <p className="text-sm font-medium text-foreground">Acervo Yolanda</p>
+            <p className="text-xs text-muted-foreground">Sistema de Bibliotecas — Fundação Edson Queiroz</p>
           </div>
           <Badge variant="outline" className="text-xs">SaaS</Badge>
         </CardContent>
