@@ -1,249 +1,142 @@
 import { Link } from "react-router-dom";
-import { BookOpen, ArrowLeftRight, Users, BarChart3, QrCode, Shield, Sparkles, Star, Heart, Rocket, ChevronRight } from "lucide-react";
+import { BookOpen, GraduationCap, Heart, Library, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-yellow-50 overflow-hidden">
-      {/* Floating decorations */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-20 left-10 text-6xl animate-float opacity-20">📚</div>
-        <div className="absolute top-40 right-20 text-5xl animate-float-slow opacity-20">🌟</div>
-        <div className="absolute bottom-40 left-20 text-4xl animate-float-reverse opacity-15">📖</div>
-        <div className="absolute top-60 left-1/3 text-3xl animate-float opacity-15">✏️</div>
-        <div className="absolute bottom-60 right-1/4 text-5xl animate-float-slow opacity-15">🎨</div>
-        <div className="absolute top-32 right-1/3 text-4xl animate-float-reverse opacity-10">🦋</div>
-      </div>
-
-      {/* Navbar */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-2 rounded-xl shadow-lg">
-            <BookOpen className="h-6 w-6 text-white" />
+    <div className="min-h-screen bg-background overflow-hidden font-sans">
+      {/* Header */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto border-b border-border/40">
+        <div className="flex items-center gap-4">
+          <img src="/images/logo-unifor.png" alt="Logo Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <div className="h-8 w-px bg-border hidden sm:block"></div>
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-2 rounded-xl">
+              <BookOpen className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold text-primary">
+              Acervo Yolanda
+            </span>
           </div>
-          <span className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-            BiblioKids
-          </span>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/login">
-            <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25 rounded-xl px-6">
-              Entrar
+            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl px-6 font-semibold shadow-sm">
+              Acessar Sistema
             </Button>
           </Link>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-24 md:pt-24 md:pb-32">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-amber-200 rounded-full px-4 py-2 text-sm text-amber-700 shadow-sm">
-              <Sparkles className="h-4 w-4 text-amber-500" />
-              <span>A biblioteca escolar do futuro ✨</span>
+      <section className="relative bg-primary text-primary-foreground py-20 lg:py-28 overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full mix-blend-overlay filter blur-xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-20 w-48 h-48 bg-accent rounded-full mix-blend-overlay filter blur-2xl"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-6 relative z-10 grid md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium">
+              <GraduationCap className="h-4 w-4 text-accent" />
+              <span>Escola de Aplicação Yolanda Queiroz</span>
             </div>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-              <span className="bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 bg-clip-text text-transparent">
-                Leitura é
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 bg-clip-text text-transparent">
-                aventura! 🚀
-              </span>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight">
+              Transformando vidas através da <span className="text-accent text-transparent bg-clip-text bg-gradient-to-r from-accent to-yellow-400">Educação</span>
             </h1>
-            <p className="text-lg md:text-xl text-amber-800/70 max-w-lg leading-relaxed">
-              Gerencie o acervo da sua biblioteca infantil com facilidade.
-              Cadastre livros, alunos e empréstimos em um sistema divertido e profissional.
+            <p className="text-lg md:text-xl text-primary-foreground/80 max-w-lg leading-relaxed font-light">
+              O Acervo Yolanda é o sistema digital de gestão da biblioteca escolar, conectando alunos ao mundo da leitura com organização e carinho.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="pt-4 flex flex-col sm:flex-row gap-4">
               <Link to="/login">
-                <Button size="lg" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg px-8 py-6 rounded-2xl shadow-xl shadow-amber-500/30 animate-pulse-glow">
-                  Comece Agora — É Grátis
-                  <ChevronRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg px-8 py-6 rounded-2xl shadow-lg font-bold group w-full sm:w-auto">
+                  Entrar no Acervo
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
             </div>
-            <div className="flex items-center gap-6 text-sm text-amber-700/60">
-              <div className="flex items-center gap-1">
-                <Shield className="h-4 w-4" />
-                <span>100% Seguro</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Star className="h-4 w-4" />
-                <span>Fácil de usar</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Heart className="h-4 w-4" />
-                <span>Feito com ♥</span>
+          </div>
+          
+          <div className="relative">
+            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 bg-black/10 flex items-center justify-center">
+              <img src="/images/historia1.jpg" alt="Alunos da Escola Yolanda Queiroz" className="w-full h-full object-cover" onError={(e) => { 
+                e.currentTarget.style.display = 'none'; 
+                e.currentTarget.parentElement?.classList.add('bg-white/5');
+              }} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6">
+                 <p className="text-white font-medium text-lg">Mais de 40 anos de história e dedicação</p>
               </div>
             </div>
-          </div>
-
-          {/* Hero Illustration */}
-          <div className="relative flex items-center justify-center">
-            <div className="relative w-80 h-80 md:w-96 md:h-96">
-              {/* Main circle */}
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-200 to-orange-300 rounded-full opacity-30 animate-pulse"></div>
-              <div className="absolute inset-4 bg-gradient-to-br from-amber-100 to-orange-200 rounded-full opacity-50"></div>
-
-              {/* Floating elements */}
-              <div className="absolute top-8 left-1/2 -translate-x-1/2 text-7xl animate-float">📚</div>
-              <div className="absolute bottom-16 left-8 text-5xl animate-float-slow animation-delay-200">👧</div>
-              <div className="absolute bottom-16 right-8 text-5xl animate-float-reverse animation-delay-400">👦</div>
-              <div className="absolute top-1/2 left-4 text-3xl animate-bounce-gentle animation-delay-600">⭐</div>
-              <div className="absolute top-1/2 right-4 text-3xl animate-bounce-gentle animation-delay-800">🌈</div>
-              <div className="absolute top-16 right-12 text-2xl animate-float animation-delay-400">🦄</div>
-              <div className="absolute top-16 left-12 text-2xl animate-float-slow animation-delay-600">🎈</div>
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-3xl animate-bounce-gentle">❤️</div>
+            
+            {/* Floating Info card */}
+            <div className="absolute -bottom-6 -left-6 bg-card text-card-foreground p-5 rounded-2xl shadow-xl flex items-center gap-4 animate-bounce-gentle border border-border">
+               <div className="bg-success/20 p-3 rounded-full">
+                 <Library className="h-6 w-6 text-success" />
+               </div>
+               <div>
+                  <p className="font-bold text-lg">Incentivo à Leitura</p>
+                  <p className="text-sm text-muted-foreground">Acervo 100% digitalizado</p>
+               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="relative z-10 bg-white/60 backdrop-blur-sm py-24">
+      {/* History Section */}
+      <section className="py-24 bg-card text-card-foreground relative z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-              <span className="bg-gradient-to-r from-amber-600 to-orange-500 bg-clip-text text-transparent">
-                Tudo que você precisa
-              </span>
-            </h2>
-            <p className="text-lg text-amber-800/60 max-w-2xl mx-auto">
-              Um sistema completo para gerenciar sua biblioteca escolar com eficiência e diversão.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: BookOpen,
-                title: "Acervo Digital",
-                description: "Cadastre e organize todos os livros com título, autor, gênero e ISBN.",
-                color: "from-amber-400 to-orange-500",
-                emoji: "📖"
-              },
-              {
-                icon: ArrowLeftRight,
-                title: "Empréstimos",
-                description: "Controle empréstimos e devoluções com datas e status automáticos.",
-                color: "from-blue-400 to-indigo-500",
-                emoji: "🔄"
-              },
-              {
-                icon: Users,
-                title: "Alunos",
-                description: "Cadastre alunos por turma e acompanhe o histórico de leitura.",
-                color: "from-emerald-400 to-teal-500",
-                emoji: "👨‍🎓"
-              },
-              {
-                icon: BarChart3,
-                title: "Relatórios",
-                description: "Gráficos e estatísticas para acompanhar o uso da biblioteca.",
-                color: "from-violet-400 to-purple-500",
-                emoji: "📊"
-              },
-            ].map((feature, i) => (
-              <div
-                key={feature.title}
-                className="group relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg shadow-amber-500/5 border border-amber-100 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-2 transition-all duration-300"
-              >
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="h-7 w-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-                  {feature.title} {feature.emoji}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section className="relative z-10 py-24 max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-            <span className="bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">
-              Simples como 1, 2, 3!
-            </span>
-          </h2>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-12">
-          {[
-            {
-              step: "1",
-              title: "Cadastre",
-              description: "Adicione seus livros e alunos ao sistema em poucos cliques.",
-              emoji: "✍️",
-              color: "from-amber-400 to-orange-500"
-            },
-            {
-              step: "2",
-              title: "Empreste",
-              description: "Registre empréstimos com data de devolução automática.",
-              emoji: "🤝",
-              color: "from-blue-400 to-indigo-500"
-            },
-            {
-              step: "3",
-              title: "Acompanhe",
-              description: "Veja relatórios e controle devoluções em tempo real.",
-              emoji: "📈",
-              color: "from-emerald-400 to-teal-500"
-            },
-          ].map((item) => (
-            <div key={item.step} className="text-center group">
-              <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center mx-auto mb-6 shadow-xl group-hover:scale-110 transition-transform duration-300`}>
-                <span className="text-3xl font-bold text-white" style={{ fontFamily: 'Fredoka, sans-serif' }}>{item.step}</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-3" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-                {item.title} {item.emoji}
-              </h3>
-              <p className="text-gray-600 max-w-xs mx-auto leading-relaxed">{item.description}</p>
+          <div className="text-center mb-16 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-primary">Nossa História</h2>
+            <div className="w-20 h-1 bg-accent mx-auto rounded-full mb-8"></div>
+            <div className="space-y-4 text-muted-foreground leading-relaxed text-lg text-justify md:text-center">
+              <p>
+                A <strong>Escola Yolanda de Queiroz</strong> foi inaugurada em 23 de julho de 1982, como um projeto de responsabilidade social da Fundação Edson Queiroz. Localizada dentro do campus da Unifor, seu objetivo primordial sempre foi oferecer educação de excelência a crianças de comunidades próximas e filhos de funcionários do Grupo Edson Queiroz.
+              </p>
+              <p>
+                Oferecendo ensino totalmente gratuito, do Infantil ao Ensino Fundamental, a escola fornece não apenas a educação formal, mas também materiais escolares, uniformes, refeições nutritivas e atividades enriquecedoras como informática, artes, música e educação física.
+              </p>
+              <p>
+                A escola também atua como um importante campo de estágio para alunos da Universidade de Fortaleza (UNIFOR), reafirmando seu compromisso de transformar a sociedade formando grandes cidadãos com muito amor e dedicação.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      {/* CTA Section */}
-      <section className="relative z-10 py-20">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-3xl p-12 md:p-16 text-center shadow-2xl shadow-amber-500/30">
-            {/* Decorative dots */}
-            <div className="absolute top-4 left-4 text-2xl opacity-30">⭐</div>
-            <div className="absolute top-4 right-4 text-2xl opacity-30">🌟</div>
-            <div className="absolute bottom-4 left-4 text-2xl opacity-30">✨</div>
-            <div className="absolute bottom-4 right-4 text-2xl opacity-30">💫</div>
-
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-              Pronto para transformar sua biblioteca? 🎉
-            </h2>
-            <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-              Comece a usar o BiblioKids hoje e veja como é fácil gerenciar sua biblioteca escolar!
-            </p>
-            <Link to="/login">
-              <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 text-lg px-10 py-6 rounded-2xl shadow-xl font-bold">
-                Começar Agora
-                <Rocket className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+          {/* Image Gallery */}
+          {/* Se as imagens não existirem, elas serão ocultadas nativamente pelo onError event */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
+             <div className="md:col-span-2 md:row-span-2 rounded-2xl overflow-hidden shadow-md group bg-muted flex items-center justify-center min-h-[200px]">
+                <img src="/images/historia2.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-muted-foreground absolute z-[-1]">Insira historia2.jpg</span>
+             </div>
+             <div className="rounded-2xl overflow-hidden shadow-md group aspect-square bg-muted flex items-center justify-center">
+                <img src="/images/historia3.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-muted-foreground absolute z-[-1]">Insira historia3.jpg</span>
+             </div>
+             <div className="rounded-2xl overflow-hidden shadow-md group aspect-square bg-muted flex items-center justify-center">
+                <img src="/images/historia4.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-muted-foreground absolute z-[-1]">Insira historia4.jpg</span>
+             </div>
+             <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-md group h-48 sm:h-auto bg-muted flex items-center justify-center min-h-[150px]">
+                <img src="/images/historia5.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-muted-foreground absolute z-[-1]">Insira historia5.jpg</span>
+             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 bg-white/40 backdrop-blur-sm border-t border-amber-200 py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <BookOpen className="h-5 w-5 text-amber-500" />
-            <span className="text-lg font-bold text-amber-700" style={{ fontFamily: 'Fredoka, sans-serif' }}>BiblioKids</span>
+      <footer className="bg-background border-t border-border py-12">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold text-primary">Acervo Yolanda</span>
           </div>
-          <p className="text-sm text-amber-600/60">
-            © 2026 BiblioKids — Feito com ❤️ para bibliotecas infantis
+          <div className="flex items-center gap-6">
+             <img src="/images/logo-unifor.png" alt="Unifor" className="h-8 object-contain brightness-0 opacity-60 hover:opacity-100 transition-opacity" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          </div>
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
+            Feito com <Heart className="h-4 w-4 text-destructive" /> para a Escola Yolanda de Queiroz
           </p>
         </div>
       </footer>
