@@ -28,7 +28,7 @@ const LandingPage = () => {
       {/* Header */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto border-b border-border/40">
         <div className="flex items-center gap-4">
-          <img src="/images/logo-unifor.png" alt="Logo Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src="/images/logo-unifor.png" alt="Logo Unifor" className="h-10 object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="h-8 w-px bg-border hidden sm:block"></div>
           <div className="flex items-center gap-2">
             <div className="bg-primary p-2 rounded-xl">
@@ -152,7 +152,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-2">
-              <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               <span className="text-2xl font-bold text-primary ml-2">Acervo Yolanda</span>
             </div>
             <p className="text-sm text-muted-foreground text-center md:text-left">

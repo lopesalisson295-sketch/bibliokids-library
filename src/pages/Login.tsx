@@ -122,7 +122,7 @@ const Login = () => {
 
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h1 className="text-3xl font-bold text-primary" style={{ fontFamily: 'Nunito, sans-serif' }}>
               Acervo Yolanda
             </h1>
