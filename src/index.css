@@ -103,9 +103,30 @@
     @apply border-border;
   }
 
+  html {
+    /* Improve base font size for better readability */
+    font-size: 16px;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans text-base leading-relaxed tracking-normal;
     font-family: 'Nunito', 'Inter', sans-serif;
+  }
+  
+  /* Melhora de contraste global de texto principal */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight text-primary;
+  }
+  
+  p, span, label {
+    @apply text-[1.05rem];
+  }
+}
+
+@layer components {
+  /* Soft and visible drop shadows for all primary buttons */
+  button {
+    @apply shadow-md hover:shadow-lg transition-all text-base;
   }
 }
 
