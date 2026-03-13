@@ -103,27 +103,18 @@
     @apply border-border;
   }
 
-  html {
-    /* Improve base font size for better readability */
-    font-size: 16px;
-  }
-
   body {
-    @apply bg-background text-foreground font-sans text-base leading-relaxed tracking-normal;
+    @apply bg-background text-foreground font-sans;
     font-family: 'Nunito', 'Inter', sans-serif;
   }
   
   /* Melhora de contraste global de texto principal */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight text-primary;
+    @apply font-bold tracking-tight;
   }
 }
 
 @layer components {
-  /* Soft and visible drop shadows for all primary buttons */
-  button {
-    @apply shadow-md hover:shadow-lg transition-all text-base;
-  }
 }
 
 /* Landing Page Animations */
