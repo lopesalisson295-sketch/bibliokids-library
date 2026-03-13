@@ -77,7 +77,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-md px-4 sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="mr-2" />
-              <img src="/images/logo-unifor.png" alt="Unifor" className="h-6 object-contain hidden sm:inline mix-blend-multiply" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <img src="/images/logo-unifor-transparent.png" alt="Unifor" className="h-6 object-contain hidden sm:inline" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               <span className="text-lg font-bold text-primary hidden sm:inline">Acervo Yolanda</span>
             </div>
             <div className="flex items-center gap-3">

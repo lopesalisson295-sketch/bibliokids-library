@@ -45,7 +45,7 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="px-4 py-4">
             <div className="flex items-center gap-2">
-              <img src="/images/logo-unifor.png" alt="Unifor" className="h-8 object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <img src="/images/logo-unifor-transparent.png" alt="Unifor" className="h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               <span className="text-lg font-bold text-primary" style={{ fontFamily: 'Nunito, sans-serif' }}>
                 Acervo Yolanda
               </span>
