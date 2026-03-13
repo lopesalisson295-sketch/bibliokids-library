@@ -64,20 +64,6 @@ const LandingPage = () => {
                 e.currentTarget.style.display = 'none'; 
                 e.currentTarget.parentElement?.classList.add('bg-white/5');
               }} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6">
-                 <p className="text-white font-medium text-lg">Mais de 40 anos de história e dedicação</p>
-              </div>
-            </div>
-            
-            {/* Floating Info card */}
-            <div className="absolute -bottom-6 -left-6 bg-card text-card-foreground p-5 rounded-2xl shadow-xl flex items-center gap-4 animate-bounce-gentle border border-border">
-               <div className="bg-success/20 p-3 rounded-full">
-                 <Library className="h-6 w-6 text-success" />
-               </div>
-               <div>
-                  <p className="font-bold text-lg">Incentivo à Leitura</p>
-                  <p className="text-sm text-muted-foreground">Acervo 100% digitalizado</p>
-               </div>
             </div>
           </div>
         </div>
@@ -102,42 +88,58 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Image Gallery */}
-          {/* Se as imagens não existirem, elas serão ocultadas nativamente pelo onError event */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
-             <div className="md:col-span-2 md:row-span-2 rounded-2xl overflow-hidden shadow-md group bg-muted flex items-center justify-center min-h-[200px]">
-                <img src="/images/historia2.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="text-muted-foreground absolute z-[-1]">Insira historia2.jpg</span>
+          {/* Portfólio de Imagens */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 pb-12">
+             <div className="md:col-span-2 row-span-2 rounded-3xl overflow-hidden shadow-xl group flex items-center justify-center min-h-[300px] md:min-h-[500px]">
+                <img src="/images/historia1.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
-             <div className="rounded-2xl overflow-hidden shadow-md group aspect-square bg-muted flex items-center justify-center">
-                <img src="/images/historia3.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="text-muted-foreground absolute z-[-1]">Insira historia3.jpg</span>
+             <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
+                <img src="/images/historia2.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
-             <div className="rounded-2xl overflow-hidden shadow-md group aspect-square bg-muted flex items-center justify-center">
-                <img src="/images/historia4.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="text-muted-foreground absolute z-[-1]">Insira historia4.jpg</span>
+             <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
+                <img src="/images/historia3.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
-             <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-md group h-48 sm:h-auto bg-muted flex items-center justify-center min-h-[150px]">
-                <img src="/images/historia5.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="text-muted-foreground absolute z-[-1]">Insira historia5.jpg</span>
+             <div className="rounded-2xl overflow-hidden shadow-lg group aspect-square flex items-center justify-center">
+                <img src="/images/historia4.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+             </div>
+             <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-lg group h-48 md:h-auto flex items-center justify-center">
+                <img src="/images/historia5.jpg" alt="Momentos da Escola Yolanda Queiroz" className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
              </div>
           </div>
         </div>
       </section>
 
+      {/* Pre-Footer CTA */}
+      <section className="bg-gradient-to-br from-primary to-primary/95 text-primary-foreground py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center space-y-8 block">
+           <h2 className="text-3xl md:text-5xl font-bold">Faça parte desta história</h2>
+           <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
+             Acesse o nosso sistema para acompanhar os empréstimos e incentivar a leitura das nossas crianças todos os dias.
+           </p>
+           <Link to="/login" className="inline-block mt-4">
+             <Button size="lg" className="bg-white text-primary hover:bg-white/90 px-10 py-6 text-lg rounded-full shadow-xl font-bold transition-all hover:scale-105">
+               Entrar no Acervo
+             </Button>
+           </Link>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-background border-t border-border py-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-primary">Acervo Yolanda</span>
+      <footer className="bg-card border-t border-border py-16">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <div className="flex items-center gap-2">
+              <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <span className="text-2xl font-bold text-primary ml-2">Acervo Yolanda</span>
+            </div>
+            <p className="text-sm text-muted-foreground text-center md:text-left">
+              Sistema de Gestão da Biblioteca Escolar Infantil
+            </p>
           </div>
-          <div className="flex items-center gap-6">
-             <img src="/images/logo-unifor.png" alt="Unifor" className="h-8 object-contain brightness-0 opacity-60 hover:opacity-100 transition-opacity" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <div className="flex flex-col items-center md:items-end gap-2 text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} Escola de Aplicação Yolanda Queiroz.</p>
+            <p>Todos os direitos reservados.</p>
           </div>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            Feito com <Heart className="h-4 w-4 text-destructive" /> para a Escola Yolanda de Queiroz
-          </p>
         </div>
       </footer>
     </div>

@@ -71,7 +71,7 @@ const Relatorios = () => {
                 <Card className="border-0 shadow-md">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
-                            <BookOpen className="h-5 w-5 text-amber-500" />
+                            <BookOpen className="h-5 w-5 text-primary" />
                             Livros Mais Emprestados
                         </CardTitle>
                     </CardHeader>
@@ -96,7 +96,7 @@ const Relatorios = () => {
                                             fontSize: "13px",
                                         }}
                                     />
-                                    <Bar dataKey="emprestimos" fill="hsl(38, 92%, 50%)" radius={[0, 6, 6, 0]} name="Empréstimos" />
+                                    <Bar dataKey="emprestimos" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} name="Empréstimos" />
                                 </BarChart>
                             </ResponsiveContainer>
                         )}
@@ -165,9 +165,9 @@ const Relatorios = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="grid sm:grid-cols-3 gap-6">
-                            <div className="text-center p-4 rounded-xl bg-amber-50">
-                                <p className="text-3xl font-bold text-amber-600">{topBooks.reduce((sum, b) => sum + b.emprestimos, 0)}</p>
-                                <p className="text-sm text-amber-700 mt-1">Total de Empréstimos</p>
+                            <div className="text-center p-4 rounded-xl bg-primary/10">
+                                <p className="text-3xl font-bold text-primary">{topBooks.reduce((sum, b) => sum + b.emprestimos, 0)}</p>
+                                <p className="text-sm text-primary/80 mt-1">Total de Empréstimos</p>
                             </div>
                             <div className="text-center p-4 rounded-xl bg-blue-50">
                                 <p className="text-3xl font-bold text-blue-600">{topBooks.length}</p>

@@ -45,11 +45,9 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="px-4 py-4">
             <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-1.5 rounded-lg">
-                <BookOpen className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-                BiblioKids
+              <img src="/images/logo-unifor.png" alt="Unifor" className="h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <span className="text-lg font-bold text-primary" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                Acervo Yolanda
               </span>
             </div>
           </div>

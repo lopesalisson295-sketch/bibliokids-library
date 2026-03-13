@@ -89,14 +89,14 @@ const Configuracoes = () => {
       <Card className="border-0 shadow-md">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <User className="h-5 w-5 text-amber-500" />
+            <User className="h-5 w-5 text-primary" />
             Perfil do Usuário
           </CardTitle>
           <CardDescription>Informações da sua conta.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="relative group w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-sm">
+            <div className="relative group w-16 h-16 rounded-full overflow-hidden bg-primary flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-sm">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}

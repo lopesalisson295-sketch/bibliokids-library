@@ -451,8 +451,8 @@ const Alunos = () => {
                       {emp.livro_capa_url ? (
                         <img src={emp.livro_capa_url} alt={emp.livro_titulo} className="w-10 h-14 object-cover rounded shadow-sm flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-14 bg-amber-100 flex items-center justify-center rounded shadow-sm flex-shrink-0">
-                          <BookOpen className="h-4 w-4 text-amber-500" />
+                        <div className="w-10 h-14 bg-primary/10 flex items-center justify-center rounded shadow-sm flex-shrink-0">
+                          <BookOpen className="h-4 w-4 text-primary" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">

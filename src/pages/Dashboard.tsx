@@ -143,7 +143,7 @@ const Dashboard = () => {
   };
 
   const stats = [
-    { title: "Total de Livros", value: totalBooks, icon: BookOpen, color: "text-amber-500", bg: "bg-amber-50" },
+    { title: "Total de Livros", value: totalBooks, icon: BookOpen, color: "text-primary", bg: "bg-primary/10" },
     { title: "Total de Alunos", value: totalStudents, icon: Users, color: "text-emerald-500", bg: "bg-emerald-50" },
     { title: "Empréstimos Ativos", value: activeLoans, icon: ArrowLeftRight, color: "text-blue-500", bg: "bg-blue-50" },
     { title: " Livros Atrasados", value: overdueLoans, icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
@@ -188,7 +188,7 @@ const Dashboard = () => {
         <Card className="lg:col-span-2 border-0 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <TrendingUp className="h-5 w-5 text-amber-500" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               Empréstimos por Mês
             </CardTitle>
           </CardHeader>
@@ -211,7 +211,7 @@ const Dashboard = () => {
                     }}
                     cursor={{ fill: 'hsl(var(--muted))' }}
                   />
-                  <Bar dataKey="emprestimos" fill="hsl(38, 92%, 50%)" radius={[6, 6, 0, 0]} name="Empréstimos" />
+                  <Bar dataKey="emprestimos" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Empréstimos" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -342,7 +342,7 @@ const Dashboard = () => {
                         onClick={() => openLightbox(livro.capa_url!, livro.titulo)}
                       />
                     ) : (
-                      <div className="w-6 h-8 rounded bg-amber-100 flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
+                      <div className="w-6 h-8 rounded bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0">
                         <BookOpen className="h-3 w-3" />
                       </div>
                     )}

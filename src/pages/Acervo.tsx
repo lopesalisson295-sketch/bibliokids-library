@@ -883,7 +883,7 @@ const Acervo = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-foreground">Acervo</h1>
-        <Button onClick={openCreateDialog} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md">
+        <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
           <Plus className="mr-2 h-4 w-4" /> Cadastrar Livro
         </Button>
       </div>
@@ -996,8 +996,8 @@ const Acervo = () => {
                           onClick={() => openLightbox(livro.capa_url!, livro.titulo)}
                         />
                       ) : (
-                        <div className="w-16 h-24 bg-amber-100 flex items-center justify-center rounded shadow-sm flex-shrink-0">
-                          <BookOpen className="h-8 w-8 text-amber-500" />
+                        <div className="w-16 h-24 bg-primary/10 flex items-center justify-center rounded shadow-sm flex-shrink-0">
+                          <BookOpen className="h-8 w-8 text-primary" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -1196,7 +1196,7 @@ const Acervo = () => {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5 text-amber-500" />
+              <History className="h-5 w-5 text-primary" />
               Histórico do Livro
             </DialogTitle>
             <DialogDescription>
@@ -1205,8 +1205,8 @@ const Acervo = () => {
                   {historyLivro.capa_url ? (
                     <img src={historyLivro.capa_url} alt={historyLivro.titulo} className="w-6 h-8 object-cover rounded" />
                   ) : (
-                    <div className="w-6 h-8 bg-amber-100 flex items-center justify-center rounded">
-                      <BookOpen className="h-3 w-3 text-amber-500" />
+                    <div className="w-6 h-8 bg-primary/10 flex items-center justify-center rounded">
+                      <BookOpen className="h-3 w-3 text-primary" />
                     </div>
                   )}
                   <span className="font-medium text-foreground">{historyLivro.titulo}</span>

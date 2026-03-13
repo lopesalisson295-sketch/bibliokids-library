@@ -102,9 +102,9 @@ const Login = () => {
       <div className="flex flex-col min-h-screen items-center justify-center px-4">
         <AnimatedBackground variant="vibrant" />
         <div className="relative z-10 flex flex-col items-center">
-          <Loader2 className="h-16 w-16 text-amber-500 animate-spin mb-4" />
-          <h2 className="text-2xl font-bold text-amber-600 mb-2">Entrando no sistema...</h2>
-          <p className="text-amber-700/60 text-sm">Preparando a biblioteca infantil</p>
+          <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+          <h2 className="text-2xl font-bold text-primary mb-2">Entrando no sistema...</h2>
+          <p className="text-primary/60 text-sm">Preparando a biblioteca infantil</p>
         </div>
       </div>
     );
@@ -115,26 +115,24 @@ const Login = () => {
       <AnimatedBackground variant="vibrant" />
       <div className="w-full max-w-sm space-y-8 relative z-10">
         {/* Back to landing */}
-        <Link to="/" className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 transition-colors">
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Voltar ao início
         </Link>
 
         <div className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-2 rounded-xl shadow-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent" style={{ fontFamily: 'Fredoka, sans-serif' }}>
-              BiblioKids
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <img src="/images/logo-unifor.png" alt="Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <h1 className="text-3xl font-bold text-primary" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              Acervo Yolanda
             </h1>
           </div>
-          <p className="text-amber-700/60 text-sm">Biblioteca Infantil</p>
+          <p className="text-primary/60 text-sm">Biblioteca Infantil Escolar</p>
         </div>
 
         {/* Login Form */}
         {!isSignUp ? (
-          <form onSubmit={handleLogin} className="space-y-5 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-amber-100">
+          <form onSubmit={handleLogin} className="space-y-5 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-border">
             <h2 className="text-2xl font-semibold text-foreground text-center">
               Acesso para Funcionários
             </h2>
@@ -172,7 +170,7 @@ const Login = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md" disabled={loading}>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md" disabled={loading}>
               {loading ? "Entrando..." : "Entrar"}
             </Button>
 
@@ -180,7 +178,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={switchMode}
-                className="text-sm text-amber-600 hover:text-amber-700 hover:underline transition-colors"
+                className="text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
               >
                 Não tem conta? <span className="font-semibold">Cadastre-se</span>
               </button>
@@ -188,7 +186,7 @@ const Login = () => {
           </form>
         ) : (
           /* Sign Up Form */
-          <form onSubmit={handleSignUp} className="space-y-5 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-amber-100">
+          <form onSubmit={handleSignUp} className="space-y-5 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-border">
             <h2 className="text-2xl font-semibold text-foreground text-center">
               Criar Conta
             </h2>
@@ -250,7 +248,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={switchMode}
-                className="text-sm text-amber-600 hover:text-amber-700 hover:underline transition-colors"
+                className="text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
               >
                 Já tem conta? <span className="font-semibold">Faça login</span>
               </button>
