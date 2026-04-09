@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isAfter } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import ImageLightbox from "@/components/ImageLightbox";
+import { syncOverdueLoans } from "@/hooks/useAutoUpdateOverdue";
 
 type Emprestimo = Tables<"emprestimos">;
 type Livro = Tables<"livros">;
@@ -57,6 +58,10 @@ const Emprestimos = () => {
 
   const fetchAll = async () => {
     setLoading(true);
+
+    // ✅ Sincronizar automaticamente empréstimos atrasados no banco
+    await syncOverdueLoans();
+
     const [empRes, livrosRes, alunosRes] = await Promise.all([
       supabase.from("emprestimos").select("*").order("criado_em", { ascending: false }),
       supabase.from("livros").select("*").order("titulo"),

@@ -8,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, subMonths, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ImageLightbox from "@/components/ImageLightbox";
+import { syncOverdueLoans } from "@/hooks/useAutoUpdateOverdue";
 
 interface LoanActivity {
   id: string;
@@ -46,6 +47,9 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // ✅ Sincronizar automaticamente empréstimos atrasados no banco
+      await syncOverdueLoans();
+
       const [booksRes, studentsRes, loansRes] = await Promise.all([
         supabase.from("livros").select("id, titulo, capa_url"),
         supabase.from("alunos").select("id, nome, foto_url"),
