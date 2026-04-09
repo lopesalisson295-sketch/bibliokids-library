@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+﻿import { useEffect, useState, useRef, useCallback } from "react";
 import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users, Zap, RotateCcw, Loader2, ScanBarcode, ChevronRight, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { uploadImage } from "@/utils/uploadImage";
 import { format, isAfter } from "date-fns";
 import ImageLightbox from "@/components/ImageLightbox";
+import { searchBookByIsbn, searchBookByTitleAuthor, getSearchStats, cleanIsbnInput } from "@/services/bookSearchService";
 
 type Livro = Tables<"livros">;
 
@@ -247,535 +248,45 @@ const Acervo = () => {
     setFetchingIsbn(true);
     setSearchProgress("Preparando busca...");
     try {
-      let cleanIsbn = targetIsbn.replace(/[^0-9X]/gi, "");
-
-      if (cleanIsbn.length !== 10 && cleanIsbn.length !== 13) {
+      const clean = cleanIsbnInput(targetIsbn);
+      if (clean.length !== 10 && clean.length !== 13) {
         toast({ title: "ISBN inválido", description: "O ISBN deve ter 10 ou 13 dígitos.", variant: "destructive" });
-        setFetchingIsbn(false);
         return;
       }
 
-      // ========================================
-      // UTILITÁRIOS
-      // ========================================
-      const fetchWithTimeout = (url: string, opts: RequestInit = {}, ms = 5000): Promise<Response> => {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), ms);
-        return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
-      };
+      // Busca completa via serviço (cache + 7 APIs em paralelo)
+      const result = await searchBookByIsbn(targetIsbn, setSearchProgress);
 
-      const safeFetchJson = async (url: string, ms = 5000) => {
-        try {
-          const r = await fetchWithTimeout(url, {}, ms);
-          return r.ok ? await r.json() : null;
-        } catch { return null; }
-      };
-
-      // Corrigir check digits
-      const fixIsbn13 = (isbn: string): string => {
-        if (isbn.length !== 13) return isbn;
-        const d = isbn.slice(0, 12).split("").map(Number);
-        let s = 0; for (let i = 0; i < 12; i++) s += d[i] * (i % 2 === 0 ? 1 : 3);
-        return isbn.slice(0, 12) + String((10 - (s % 10)) % 10);
-      };
-      const fixIsbn10 = (isbn: string): string => {
-        if (isbn.length !== 10) return isbn;
-        const d = isbn.slice(0, 9).split("").map(Number);
-        let s = 0; for (let i = 0; i < 9; i++) s += d[i] * (10 - i);
-        const r = (11 - (s % 11)) % 11;
-        return isbn.slice(0, 9) + (r === 10 ? "X" : String(r));
-      };
-      const isbn13to10 = (i13: string): string => {
-        if (i13.length !== 13 || !i13.startsWith("978")) return "";
-        const core = i13.slice(3, 12), d = core.split("").map(Number);
-        let s = 0; for (let i = 0; i < 9; i++) s += d[i] * (10 - i);
-        const r = (11 - (s % 11)) % 11;
-        return core + (r === 10 ? "X" : String(r));
-      };
-      const isbn10to13 = (i10: string): string => {
-        if (i10.length !== 10) return "";
-        const core = "978" + i10.slice(0, 9), d = core.split("").map(Number);
-        let s = 0; for (let i = 0; i < 12; i++) s += d[i] * (i % 2 === 0 ? 1 : 3);
-        return core + String((10 - (s % 10)) % 10);
-      };
-
-      const correctedIsbn = cleanIsbn.length === 13 ? fixIsbn13(cleanIsbn) : fixIsbn10(cleanIsbn);
-      const altIsbn = correctedIsbn.length === 13 ? isbn13to10(correctedIsbn) : isbn10to13(correctedIsbn);
-      const allIsbns = [...new Set([correctedIsbn, altIsbn, cleanIsbn].filter(v => v && (v.length === 10 || v.length === 13)))];
-
-      const upgradeGoogleCover = (url: string): string =>
-        url ? url.replace("&edge=curl", "").replace(/zoom=\d/, "zoom=0").replace("http:", "https:") : "";
-
-      // ========================================
-      // TRADUTOR DE GÊNEROS (EXPANDIDO)
-      // ========================================
-      const genrePriority: [RegExp, string][] = [
-        [/fantasy|fantasia|magic|magia|wizard|feiticeiro|bruxa|witchcraft|witch|sorcery|alchemy|good and evil|supernatural|mytholog|fadas|fairy|enchant|encantad/i, "Fantasia"],
-        [/science fiction|sci-fi|ficção científica|dystopi|distopi|futurist|cyberpunk|steampunk/i, "Ficção Científica"],
-        [/adventure|aventura|action|quest|journey|viagem|expedição|exploraç/i, "Aventura"],
-        [/mystery|mistério|detective|thriller|suspense|crime|policial|investigat|enigma|noir/i, "Suspense"],
-        [/horror|terror|creepy|scary|ghost story|história de terror|sobrenatural|macabr|sinistro|assombr/i, "Terror"],
-        [/romance|love|amor|romantic|paixão|passion|love story|história de amor|chick lit|relacionamento|relationship/i, "Romance"],
-        [/drama|tragic|trágic|coming of age|amadurecimento|contemporary|contemporâne|literary fiction|ficção literária|crônica|cronica/i, "Drama"],
-        [/fairy tale|conto de fadas|fable|fábula|folklore|folclore|lenda|legend|mito|myth/i, "Conto de Fadas"],
-        [/historical fiction|ficção histórica|historical novel|romance histórico/i, "Ficção Histórica"],
-        [/biography|biografia|autobiography|autobiografia|memoir|memória|memórias/i, "Biografia"],
-        [/poetry|poesia|poem|poems|poema|soneto|haiku|verso/i, "Poesia"],
-        [/humor|comedy|comédia|funny|engraçad|satir|sátira|piada/i, "Comédia"],
-        [/education|educação|educational|didátic|pedagog|textbook|livro didático|ensino|teaching|escolar|paradidátic/i, "Educação"],
-        [/religion|religião|spiritual|espiritual|bible|bíblia|faith|gospel|evangel|teolog/i, "Religião"],
-        [/science|ciência|scientific|científic|physics|biology|chemistry|biolog|físic|químic|astronomia|geolog/i, "Ciência"],
-        [/\bart\b|arte|music|música|painting|pintura|drawing|desenho|fotografia|photograph|cinema|teatro|theater/i, "Arte"],
-        [/cooking|culinária|cookbook|receita|recipe|gastronom|food|comida|chef/i, "Culinária"],
-        [/sport|esporte|athletic|atlético|football|futebol|soccer|olymp|olímpic|basquet|volei/i, "Esportes"],
-        [/self-help|self help|autoajuda|auto-ajuda|motivational|motivacion|personal development|desenvolvimento pessoal|superação/i, "Autoajuda"],
-        [/philosophy|filosofia|philosophical|filosóf|ética|ethics/i, "Filosofia"],
-        [/psychology|psicologia|psychological|psicológ|mental health|saúde mental|comportament/i, "Psicologia"],
-        [/business|negócios|management|gestão|marketing|entrepreneurship|empreended|financ|economia|econom/i, "Negócios"],
-        [/technology|tecnologia|programming|programação|computer|computad|software|digital|inteligência artificial|ai\b|machine learning/i, "Tecnologia"],
-        [/\bhistory\b|história|historical|guerra mundial|world war|civilizaç|civilization/i, "História"],
-        [/literatura brasileira|brazilian literature|literatura nacional|cordel|sertão|nordeste/i, "Literatura Brasileira"],
-        [/graphic novel|hq|quadrinhos|comics|manga|mangá|gibi/i, "HQ / Quadrinhos"],
-        [/juvenile|children|infantil|infanto|young adult|teen|adolescent|middle grade|picture book|livro infantil|kids|criança/i, "Infanto-juvenil"],
-        [/\bfiction\b|ficção|novel|novela|^fiction$/i, "Ficção"],
-      ];
-
-      const translateGenre = (raw: string): string => {
-        if (!raw) return "";
-        const cleaned = raw.replace(/^(JUVENILE|YOUNG ADULT)\s*(FICTION|NONFICTION)\s*[\/\-]\s*/i, "").trim();
-        if (cleaned !== raw && cleaned.length > 2) {
-          for (const [rx, lbl] of genrePriority) if (rx.test(cleaned)) return lbl;
-        }
-        const segs = raw.split(/[\/]/).map(s => s.trim()).filter(s => s.length > 1);
-        const spec = segs.filter(s => !/^\s*(fiction|ficção|nonfiction)\s*$/i.test(s));
-        for (const seg of spec) for (const [rx, lbl] of genrePriority) if (rx.test(seg)) return lbl;
-        for (const [rx, lbl] of genrePriority) if (rx.test(raw)) return lbl;
-        return cleaned.length > 30 ? cleaned.split(/[,|;]/)[0].trim() : cleaned;
-      };
-
-      const bestGenre = (cats: string[]): string => {
-        let best = "", bestP = 999;
-        for (const c of cats) {
-          const t = translateGenre(c);
-          if (!t) continue;
-          const idx = genrePriority.findIndex(([rx]) => rx.test(c));
-          if (idx >= 0 && idx < bestP) { bestP = idx; best = t; }
-          else if (idx === -1 && !best) best = t;
-        }
-        return best;
-      };
-
-      const extractTranslators = (names: any[], knownAuthors?: string[]): { authors: string, translators: string } => {
-        if (!names || !Array.isArray(names) || names.length === 0) return { authors: "", translators: "" };
-        const authorsList: string[] = [];
-        const translatorsList: string[] = [];
-        names.forEach(name => {
-          if (typeof name !== 'string') return;
-          const cleanName = name.replace(/,\s*$/, "").trim(); // Removendo vírgula sobressalente do final!
-          if (!cleanName) return;
-          if (/traduto|translato|traduçã/i.test(cleanName)) {
-            translatorsList.push(cleanName.replace(/\s*\(\s*(Tradutor|Translator|Tradução|Trad)\s*\)/i, "").trim());
-          } else if (knownAuthors && knownAuthors.length > 0 && names.length > knownAuthors.length) {
-            // Se veio uma lista de autores originais (ex: do Google) e essa lista atual tem MAIS pessoas,
-            // quem NÃO está na lista original provavelmente é o tradutor!
-            const isOriginalAuthor = knownAuthors.some(ka => ka.toLowerCase().includes(cleanName.toLowerCase()) || cleanName.toLowerCase().includes(ka.toLowerCase()));
-            if (!isOriginalAuthor) {
-              translatorsList.push(cleanName);
-            } else {
-              authorsList.push(cleanName);
-            }
-          } else {
-            authorsList.push(cleanName);
-          }
-        });
-        return {
-          authors: authorsList.join(", "),
-          translators: translatorsList.join(", ")
-        };
-      };
-
-      // Detectar gênero pela descrição do livro
-      const genreFromDescription = (desc: string): string => {
-        if (!desc) return "";
-        const descPatterns: [RegExp, string][] = [
-          [/romance|amor|paixão|coração|sentimento|love|heart|relationship|relacionamento/i, "Romance"],
-          [/magia|magic|bruxa|wizard|feiticeiro|dragão|dragon|elfo|elf|poder mágico|enchanted|encantad/i, "Fantasia"],
-          [/mistério|detective|investig|crime|assassin|murder|pista|clue|suspect|suspeit/i, "Suspense"],
-          [/terror|horror|medo|fear|assombr|haunt|demon|demônio|scream|grito/i, "Terror"],
-          [/aventura|adventure|jornada|journey|expedição|expedition|busca|quest/i, "Aventura"],
-          [/futuro|future|robô|robot|espacial|space|alien|tecnologia avançada|dystopi|distopi/i, "Ficção Científica"],
-          [/guerra|war|batalha|battle|exército|army|soldado|soldier|históric/i, "Ficção Histórica"],
-          [/vida|life|família|family|crescer|grow|amadurec|coming.of.age|existên|identity|identidade/i, "Drama"],
-          [/engraçad|humor|funny|comédia|comedy|rir|laugh|hilári/i, "Comédia"],
-          [/quadrinhos|comics|manga|graphic novel|hq|gibi/i, "HQ / Quadrinhos"],
-          [/poesia|poema|verso|rima|poetry|poem/i, "Poesia"],
-          [/sertão|nordeste|cangaço|caatinga|cordel/i, "Literatura Brasileira"],
-          [/universo paralelo|parallel|multiverso|multiverse|realidade alternativa|alternate|possibilidades|possibilities|vidas? alternativa/i, "Drama"],
-        ];
-        for (const [rx, lbl] of descPatterns) if (rx.test(desc)) return lbl;
-        return "";
-      };
-
-      // ========================================
-      // BUSCA ULTRA-PARALELA — TODAS AS VARIANTES AO MESMO TEMPO
-      // ========================================
-      setSearchProgress("Consultando Google Books, BrasilAPI, OpenLibrary...");
-      type BookResult = { titulo: string; autor: string; tradutor: string; editora: string; ano: string; genero: string; capa_url: string; descricao: string; cats: string[]; googleVolumeId: string; score: number };
-
-      const fetchSingleIsbn = async (isbn: string): Promise<BookResult> => {
-        const b: BookResult = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", cats: [], googleVolumeId: "", score: 0 };
-
-        // === TODAS AS APIs EM PARALELO ===
-        const [googleR, googlePtR, brasilR, olBooksR, olEditionR] = await Promise.allSettled([
-          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3`),
-          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&langRestrict=pt&maxResults=3`),
-          safeFetchJson(`https://brasilapi.com.br/api/isbn/v1/${isbn}?providers=mercado-editorial,cbl,open-library`, 8000),
-          safeFetchJson(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`),
-          safeFetchJson(`https://openlibrary.org/isbn/${isbn}.json`),
-        ]);
-
-        // Google Books em PT (prioridade)
-        const gPt = googlePtR.status === "fulfilled" ? googlePtR.value : null;
-        const gd = googleR.status === "fulfilled" ? googleR.value : null;
-
-        // Prefere resultado em PT, senão usa resultado geral
-        let bestGoogle = gPt?.items?.length > 0 ? gPt.items[0] : (gd?.items?.length > 0 ? gd.items[0] : null);
-
-        // Tenta achar um match exato pelo ISBN nos resultados do Google
-        const allGoogleItems = [...(gPt?.items || []), ...(gd?.items || [])];
-        for (const item of allGoogleItems) {
-          const ids = item.volumeInfo?.industryIdentifiers || [];
-          if (ids.some((id: any) => id.identifier === isbn)) {
-            bestGoogle = item;
-            break;
-          }
-        }
-
-        if (bestGoogle) {
-          const v = bestGoogle.volumeInfo;
-          b.googleVolumeId = bestGoogle.id || "";
-          b.titulo = v.title || "";
-          if (v.subtitle) b.titulo += ": " + v.subtitle;
-          if (v.authors) {
-            const ext = extractTranslators(v.authors);
-            b.autor = ext.authors;
-            b.tradutor = ext.translators;
-          }
-          b.editora = v.publisher || "";
-          b.ano = v.publishedDate ? v.publishedDate.substring(0, 4) : "";
-          b.capa_url = upgradeGoogleCover(v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "");
-          b.descricao = v.description || "";
-          if (v.categories) b.cats.push(...v.categories);
-          if (v.language === "pt") b.score += 5; // Bonus para resultados em PT
-        }
-
-        // BrasilAPI — SEMPRE sobrescreve para dados PT-BR
-        const bd = brasilR.status === "fulfilled" ? brasilR.value : null;
-        if (bd && !bd.message) {
-          if (bd.title) { b.titulo = bd.title; b.score += 10; } // Maior confiança para dados BR
-          if (bd.authors?.length > 0) {
-            // Se o Google achar os autores originais, passamos para a BrasilAPI usar como crivo
-            const knownOriginals = bestGoogle?.volumeInfo?.authors || [];
-            const ext = extractTranslators(bd.authors, knownOriginals);
-            b.autor = ext.authors || b.autor;
-            if (ext.translators) b.tradutor = ext.translators;
-          }
-          if (bd.publisher) b.editora = bd.publisher;
-          if (bd.year) b.ano = String(bd.year);
-          if (bd.cover_url) b.capa_url = bd.cover_url;
-          if (bd.synopsis) b.descricao = bd.synopsis;
-          if (bd.subjects?.length > 0) {
-            b.cats.push(...bd.subjects.filter((s: string) => !s.startsWith("series:")));
-          }
-        }
-
-        // OpenLibrary Books
-        const olb = olBooksR.status === "fulfilled" ? olBooksR.value : null;
-        const olBook = olb?.[`ISBN:${isbn}`];
-        if (olBook) {
-          if (!b.titulo && olBook.title) b.titulo = olBook.title;
-          if (olBook.authors) {
-            const ext = extractTranslators(olBook.authors.map((a: any) => a.name));
-            if (!b.autor && ext.authors) b.autor = ext.authors;
-            if (!b.tradutor && ext.translators) b.tradutor = ext.translators;
-          }
-          if (!b.editora && olBook.publishers) b.editora = olBook.publishers.map((p: any) => p.name).join(", ");
-          if (!b.ano && olBook.publish_date) b.ano = olBook.publish_date.match(/\d{4}/)?.[0] || "";
-          if (!b.capa_url && olBook.cover) b.capa_url = olBook.cover.large || olBook.cover.medium || "";
-          if (olBook.subjects) olBook.subjects.forEach((s: any) => b.cats.push(s.name || s));
-        }
-
-        // OpenLibrary Edition (ano preciso)
-        const olE = olEditionR.status === "fulfilled" ? olEditionR.value : null;
-        if (olE) {
-          if (olE.publish_date) {
-            const ym = olE.publish_date.match(/\d{4}/);
-            if (ym && (!b.ano || parseInt(ym[0]) > parseInt(b.ano))) b.ano = ym[0];
-          }
-          if (!b.editora && olE.publishers?.length > 0) b.editora = olE.publishers[0];
-        }
-
-        // Calcular score de completude
-        if (b.titulo) b.score += 3;
-        if (b.autor) b.score += 2;
-        if (b.editora) b.score += 1;
-        if (b.ano) b.score += 1;
-        if (b.capa_url) b.score += 2;
-
-        return b;
-      };
-
-      // ========================================
-      // EXECUTAR TODAS AS VARIANTES EM PARALELO (MUITO MAIS RÁPIDO)
-      // ========================================
-      const allResults = await Promise.allSettled(allIsbns.map(isbn => fetchSingleIsbn(isbn)));
-
-      setSearchProgress("Analisando resultados...");
-
-      // Coletar todos os resultados bem-sucedidos
-      const validResults: { isbn: string; data: BookResult }[] = [];
-      for (let i = 0; i < allResults.length; i++) {
-        if (allResults[i].status === "fulfilled") {
-          validResults.push({ isbn: allIsbns[i], data: (allResults[i] as PromiseFulfilledResult<BookResult>).value });
-        }
-      }
-
-      // Selecionar o melhor resultado pelo score
-      validResults.sort((a, b) => b.data.score - a.data.score);
-
-      // Merge inteligente: pegar o melhor e preencher gaps com outros
-      let bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "" };
-      let usedIsbn = correctedIsbn;
-      let allCats: string[] = [];
-      let bestGoogleVolumeId = "";
-
-      if (validResults.length > 0) {
-        const best = validResults[0];
-        bookData.titulo = best.data.titulo;
-        bookData.autor = best.data.autor;
-        bookData.tradutor = best.data.tradutor;
-        bookData.editora = best.data.editora;
-        bookData.ano = best.data.ano;
-        bookData.capa_url = best.data.capa_url;
-        bookData.descricao = best.data.descricao;
-        allCats = [...best.data.cats];
-        bestGoogleVolumeId = best.data.googleVolumeId;
-        if (best.data.titulo) usedIsbn = best.isbn;
-
-        // Preencher gaps com dados de outros resultados
-        for (let i = 1; i < validResults.length; i++) {
-          const other = validResults[i].data;
-          if (!bookData.titulo && other.titulo) { bookData.titulo = other.titulo; usedIsbn = validResults[i].isbn; }
-          if (!bookData.autor && other.autor) bookData.autor = other.autor;
-          if (!bookData.tradutor && other.tradutor) bookData.tradutor = other.tradutor;
-          if (!bookData.editora && other.editora) bookData.editora = other.editora;
-          if (!bookData.ano && other.ano) bookData.ano = other.ano;
-          if (!bookData.capa_url && other.capa_url) bookData.capa_url = other.capa_url;
-          if (!bookData.descricao && other.descricao) bookData.descricao = other.descricao;
-          if (!bestGoogleVolumeId && other.googleVolumeId) bestGoogleVolumeId = other.googleVolumeId;
-          allCats.push(...other.cats);
-        }
-      }
-
-      // Aplicar gênero das categorias combinadas
-      if (allCats.length > 0) {
-        const g = bestGenre(allCats);
-        if (g) bookData.genero = g;
-      }
-
-      // ========================================
-      // ONDA 2 (APENAS SE FALTAM DADOS) — em paralelo
-      // ========================================
-      const needsCover = !bookData.capa_url;
-      const needsGenre = !bookData.genero;
-
-      if (bookData.titulo && (needsCover || needsGenre || !bookData.editora)) {
-        setSearchProgress("Buscando capa e gênero...");
-        const wave2: Promise<void>[] = [];
-
-        // Google Volume Detail (melhor capa + editora + gênero)
-        if (bestGoogleVolumeId && (needsCover || !bookData.editora || needsGenre)) {
-          wave2.push(
-            safeFetchJson(`https://www.googleapis.com/books/v1/volumes/${bestGoogleVolumeId}`).then(data => {
-              const dv = data?.volumeInfo;
-              if (!dv) return;
-              if (!bookData.editora && dv.publisher) bookData.editora = dv.publisher;
-              if (!bookData.descricao && dv.description) bookData.descricao = dv.description;
-              if (dv.imageLinks) {
-                const best = dv.imageLinks.extraLarge || dv.imageLinks.large || dv.imageLinks.medium || dv.imageLinks.small || dv.imageLinks.thumbnail || "";
-                if (best && !bookData.capa_url) bookData.capa_url = upgradeGoogleCover(best);
-              }
-              if (dv.categories && !bookData.genero) {
-                const g = bestGenre(dv.categories);
-                if (g) bookData.genero = g;
-              }
-            })
-          );
-        }
-
-        // OpenLibrary Search (gênero + capa fallback)
-        if (needsGenre || needsCover) {
-          const olQuery = bookData.titulo ? `title=${encodeURIComponent(bookData.titulo)}${bookData.autor ? `&author=${encodeURIComponent(bookData.autor)}` : ''}` : `isbn=${correctedIsbn}`;
-          wave2.push(
-            safeFetchJson(`https://openlibrary.org/search.json?${olQuery}&limit=1`).then(async (sd) => {
-              const doc = sd?.docs?.[0];
-              if (!doc) return;
-              if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
-              if (doc.author_name) {
-                const ext = extractTranslators(doc.author_name);
-                if (!bookData.autor && ext.authors) bookData.autor = ext.authors;
-                if (!bookData.tradutor && ext.translators) bookData.tradutor = ext.translators;
-              }
-              if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
-              if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
-              if (!bookData.genero && doc.subject) {
-                const g = bestGenre(doc.subject.slice(0, 20));
-                if (g) bookData.genero = g;
-              }
-              if (!bookData.genero && doc.key) {
-                const wd = await safeFetchJson(`https://openlibrary.org${doc.key}.json`);
-                if (wd?.subjects?.length > 0) {
-                  const g = bestGenre(wd.subjects.slice(0, 20));
-                  if (g) bookData.genero = g;
-                }
-                if (!bookData.descricao && wd?.description) {
-                  bookData.descricao = typeof wd.description === "string" ? wd.description : wd.description.value || "";
-                }
-              }
-            })
-          );
-        }
-
-        // Capas via OpenLibrary Covers (todas as variantes em paralelo)
-        if (needsCover) {
-          wave2.push(
-            Promise.allSettled(
-              allIsbns.map(v =>
-                fetchWithTimeout(`https://covers.openlibrary.org/b/isbn/${v}-L.jpg?default=false`, { method: "HEAD", redirect: "manual" }, 4000)
-                  .then(r => (r.status === 200 || r.status === 302) ? v : null)
-                  .catch(() => null)
-              )
-            ).then(results => {
-              for (const r of results) {
-                if (r.status === "fulfilled" && r.value && !bookData.capa_url) {
-                  bookData.capa_url = `https://covers.openlibrary.org/b/isbn/${r.value}-L.jpg`;
-                  break;
-                }
-              }
-            })
-          );
-        }
-
-        await Promise.allSettled(wave2);
-      }
-
-      // Detectar gênero pela descrição se ainda não tem
-      if (!bookData.genero && bookData.descricao) {
-        bookData.genero = genreFromDescription(bookData.descricao);
-      }
-
-      // ========================================
-      // 3. BUSCA DE TRADUÇÃO & FALLBACK FINAL
-      // ========================================
-      // Se a pontuação for < 10, significa que não achou nem na BrasilAPI nem no Google-PT. 
-      // Provavelmente é um livro estrangeiro. Vamos tentar achar a edição traduzida!
-      const isLikelyForeign = validResults.length > 0 && validResults[0].data.score < 10;
-
-      if (bookData.titulo && (!bookData.capa_url || !bookData.genero || isLikelyForeign)) {
-        // CORREÇÃO: Usar intitle e inauthor corretamente em vez de misturar
-        const tituloLimpo = bookData.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
-        const primeiroAutor = bookData.autor.split(',')[0].trim();
-        const autorLimpo = primeiroAutor.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
-        
-        const qParts = [];
-        if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
-        if (autorLimpo && autorLimpo !== "Autor Desconhecido") qParts.push(`inauthor:${autorLimpo}`);
-        const queryStr = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : bookData.titulo);
-
-        const gData = await safeFetchJson(
-          `https://www.googleapis.com/books/v1/volumes?q=${queryStr}&langRestrict=pt&maxResults=5`
-        );
-
-        let translatedFound = false;
-
-        for (const item of (gData?.items || [])) {
-          const vi = item.volumeInfo;
-
-          // Se for estrangeiro e o Google achou uma versão em PT-BR, substituímos os dados básicos pela tradução!
-          if (isLikelyForeign && !translatedFound && vi?.language === "pt" && vi?.title) {
-            bookData.titulo = vi.title; // Título traduzido!
-            if (vi.authors) {
-              const ext = extractTranslators(vi.authors);
-              bookData.autor = ext.authors;
-              bookData.tradutor = ext.translators;
-            }
-            if (vi.publisher) bookData.editora = vi.publisher;
-            if (vi.description) {
-              bookData.descricao = vi.description;
-              const newG = genreFromDescription(vi.description);
-              if (newG) bookData.genero = newG;
-            }
-            translatedFound = true;
-          }
-
-          if (!bookData.capa_url && vi?.imageLinks) {
-            const c = vi.imageLinks.extraLarge || vi.imageLinks.large || vi.imageLinks.medium || vi.imageLinks.small || vi.imageLinks.thumbnail || "";
-            if (c) bookData.capa_url = upgradeGoogleCover(c);
-          }
-          if (!bookData.genero && vi?.categories) {
-            const g = bestGenre(vi.categories);
-            if (g) bookData.genero = g;
-          }
-          if (!bookData.genero && vi?.description) {
-            const g = genreFromDescription(vi.description);
-            if (g) bookData.genero = g;
-          }
-          if (bookData.capa_url && bookData.genero && (!isLikelyForeign || translatedFound)) break;
-        }
-      }
-
-      // ========================================
-      // RESULTADO FINAL
-      // ========================================
-      if (bookData.titulo && !bookData.genero) bookData.genero = "Geral";
-      if (bookData.titulo && !bookData.autor) bookData.autor = "Autor Desconhecido";
-
-      if (bookData.titulo || bookData.autor) {
+      if (result) {
         setForm(prev => ({
           ...prev,
-          titulo: bookData.titulo || prev.titulo,
-          autor: bookData.autor || prev.autor,
-          tradutor: bookData.tradutor || prev.tradutor,
-          editora: bookData.editora || prev.editora,
-          ano_publicacao: bookData.ano || prev.ano_publicacao,
-          genero: bookData.genero || prev.genero,
-          capa_url: bookData.capa_url || prev.capa_url,
-          isbn: usedIsbn,
+          titulo: result.titulo || prev.titulo,
+          autor: result.autor || prev.autor,
+          tradutor: result.tradutor || prev.tradutor,
+          editora: result.editora || prev.editora,
+          ano_publicacao: result.ano || prev.ano_publicacao,
+          genero: result.genero || prev.genero,
+          capa_url: result.capa_url || prev.capa_url,
+          isbn: result.isbn,
         }));
 
-        const found: string[] = [], missing: string[] = [];
-        if (bookData.titulo) found.push("título"); else missing.push("título");
-        if (bookData.autor && bookData.autor !== "Autor Desconhecido") found.push("autor"); else missing.push("autor");
-        if (bookData.editora) found.push("editora"); else missing.push("editora");
-        if (bookData.ano) found.push("ano"); else missing.push("ano");
-        if (bookData.genero && bookData.genero !== "Geral") found.push("gênero"); else missing.push("gênero");
-        if (bookData.capa_url) found.push("capa"); else missing.push("capa");
+        const { found, missing } = getSearchStats(result);
+        const correctedMsg = result.isbn !== clean ? "\n📝 ISBN corrigido automaticamente." : "";
 
-        const correctedMsg = usedIsbn !== cleanIsbn ? "\n📝 ISBN corrigido automaticamente." : "";
         if (missing.length === 0) {
-          toast({ title: "✅ Dados completos!", description: `Todos os 6 campos preenchidos automaticamente.${correctedMsg}` });
+          toast({ title: "✅ Dados completos!", description: `Todos os 6 campos preenchidos. Fonte: ${result.fonte}${correctedMsg}` });
           // ⚡ AUTO-SAVE no modo turbo quando dados completos
           if (turboMode && autoSaveEnabled) {
             const autoForm = {
               ...emptyForm,
-              titulo: bookData.titulo,
-              autor: bookData.autor,
-              tradutor: bookData.tradutor,
-              editora: bookData.editora,
-              ano_publicacao: bookData.ano,
-              genero: bookData.genero,
-              capa_url: bookData.capa_url,
-              isbn: usedIsbn,
+              titulo: result.titulo,
+              autor: result.autor,
+              tradutor: result.tradutor,
+              editora: result.editora,
+              ano_publicacao: result.ano,
+              genero: result.genero,
+              capa_url: result.capa_url,
+              isbn: result.isbn,
             };
             setTimeout(() => turboAutoSave(autoForm), 500);
           }
@@ -802,96 +313,33 @@ const Acervo = () => {
     }
 
     setFetchingIsbn(true);
+    setSearchProgress("Buscando por título/autor...");
     try {
-      const fetchWithTimeout = (url: string, ms = 7000) => {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), ms);
-        return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
-      };
+      const result = await searchBookByTitleAuthor(form.titulo, form.autor, setSearchProgress);
 
-      const safeFetchJson = async (url: string) => {
-        try {
-          const r = await fetchWithTimeout(url, 7000);
-          return r.ok ? await r.json() : null;
-        } catch { return null; }
-      };
-
-      const tituloLimpo = form.titulo.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
-      const primeiroAutor = form.autor.split(',')[0].trim();
-      const autorLimpo = primeiroAutor.replace(/[^\w\s\u00C0-\u00FF]/gi, ' ').trim();
-      
-      const qParts = [];
-      if (tituloLimpo) qParts.push(`intitle:${tituloLimpo}`);
-      if (autorLimpo) qParts.push(`inauthor:${autorLimpo}`);
-      const queryStrGoogle = encodeURIComponent(qParts.length > 0 ? qParts.join("+") : (form.titulo || form.autor));
-      const queryStrOL = encodeURIComponent((form.titulo + " " + primeiroAutor).trim());
-
-      const [googlePtR, googleR, olR] = await Promise.allSettled([
-        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStrGoogle}&langRestrict=pt&maxResults=4`),
-        safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${queryStrGoogle}&maxResults=4`),
-        safeFetchJson(`https://openlibrary.org/search.json?q=${queryStrOL}&limit=3`)
-      ]);
-
-      const gPt = googlePtR.status === "fulfilled" ? googlePtR.value : null;
-      const gd = googleR.status === "fulfilled" ? googleR.value : null;
-
-      let bestGoogle = gPt?.items?.length > 0 ? gPt.items[0] : (gd?.items?.length > 0 ? gd.items[0] : null);
-
-      let bookData = { titulo: form.titulo, autor: form.autor, tradutor: form.tradutor, editora: form.editora, ano: form.ano_publicacao, genero: form.genero, capa_url: form.capa_url, isbn: form.isbn };
-      let newDataFound = false;
-
-      if (bestGoogle) {
-        const v = bestGoogle.volumeInfo;
-        newDataFound = true;
-        if (!bookData.titulo && v.title) bookData.titulo = v.title + (v.subtitle ? ": " + v.subtitle : "");
-        if (!bookData.autor && v.authors) bookData.autor = v.authors.join(", ");
-        if (!bookData.editora && v.publisher) bookData.editora = v.publisher;
-        if (!bookData.ano && v.publishedDate) bookData.ano = v.publishedDate.substring(0, 4);
-        if (!bookData.capa_url && v.imageLinks) {
-            bookData.capa_url = (v.imageLinks.extraLarge || v.imageLinks.large || v.imageLinks.medium || v.imageLinks.thumbnail || "").replace("http:", "https:").replace("&edge=curl", "");
-        }
-        if (!bookData.isbn && v.industryIdentifiers) {
-           const id = v.industryIdentifiers.find((i: any) => i.type === "ISBN_13") || v.industryIdentifiers.find((i: any) => i.type === "ISBN_10");
-           if (id) bookData.isbn = id.identifier;
-        }
-        if (!bookData.genero && v.categories && v.categories.length > 0) {
-            bookData.genero = v.categories[0]; 
-        }
-      }
-
-      const olData = olR.status === "fulfilled" ? olR.value : null;
-      if (olData && olData.docs && olData.docs.length > 0) {
-        const doc = olData.docs[0];
-        newDataFound = true;
-        if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
-        if (!bookData.autor && doc.author_name) bookData.autor = doc.author_name[0];
-        if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
-        if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
-        if (!bookData.ano && doc.first_publish_year) bookData.ano = String(doc.first_publish_year);
-      }
-
-      setForm(prev => ({
-        ...prev,
-        titulo: bookData.titulo || prev.titulo,
-        autor: bookData.autor || prev.autor,
-        editora: bookData.editora || prev.editora,
-        ano_publicacao: bookData.ano || prev.ano_publicacao,
-        capa_url: bookData.capa_url || prev.capa_url,
-        genero: bookData.genero || prev.genero,
-        isbn: bookData.isbn || prev.isbn,
-      }));
-
-      if (newDataFound) {
+      if (result) {
+        setForm(prev => ({
+          ...prev,
+          titulo: result.titulo || prev.titulo,
+          autor: result.autor || prev.autor,
+          editora: result.editora || prev.editora,
+          ano_publicacao: result.ano || prev.ano_publicacao,
+          capa_url: result.capa_url || prev.capa_url,
+          genero: result.genero || prev.genero,
+          isbn: result.isbn || prev.isbn,
+        }));
         toast({ title: "✅ Busca concluída", description: "Dados adicionais preenchidos com sucesso." });
       } else {
-        toast({ title: "Sem resultados", description: "Infelizmente não encontramos nenhum dado a mais com esse título e/ou autor nas bases de dados.", variant: "destructive" });
+        toast({ title: "Sem resultados", description: "Não encontramos nenhum dado com esse título e/ou autor nas bases.", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Erro na busca", description: "Ocorreu um erro inesperado ao buscar dados adicionais.", variant: "destructive" });
     } finally {
       setFetchingIsbn(false);
+      setSearchProgress("");
     }
   };
+
 
   const handleDelete = async () => {
     if (!deletingId) return;
