@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users, Zap, RotateCcw, Loader2, ScanBarcode, ChevronRight, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,6 +51,15 @@ const Acervo = () => {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [lightboxUrl, setLightboxUrl] = useState("");
   const [lightboxAlt, setLightboxAlt] = useState("");
+
+  // ⚡ MODO METRALHADORA: Cadastro em série ultra-rápido
+  const [turboMode, setTurboMode] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
+  const [searchProgress, setSearchProgress] = useState("");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSavedTitle, setLastSavedTitle] = useState("");
+  const isbnInputRef = useRef<HTMLInputElement>(null);
+
   const { toast } = useToast();
 
   const openLightbox = (url: string, alt: string) => {
@@ -95,7 +104,18 @@ const Acervo = () => {
     setEditingId(null);
     setForm(emptyForm);
     setImageFile(null);
+    setSearchProgress("");
+    setLastSavedTitle("");
     setDialogOpen(true);
+    // Auto-focus no campo ISBN após abrir
+    setTimeout(() => isbnInputRef.current?.focus(), 150);
+  };
+
+  // ⚡ Abrir em modo turbo (metralhadora)
+  const openTurboDialog = () => {
+    setTurboMode(true);
+    setSessionCount(0);
+    openCreateDialog();
   };
 
   const openEditDialog = (livro: Livro) => {
@@ -158,9 +178,56 @@ const Acervo = () => {
     }
 
     setSaving(false);
-    setDialogOpen(false);
+
+    // ⚡ MODO METRALHADORA: Limpa e prepara pro próximo
+    if (turboMode && !editingId) {
+      setLastSavedTitle(form.titulo);
+      setSessionCount(prev => prev + 1);
+      setForm(emptyForm);
+      setImageFile(null);
+      setSearchProgress("");
+      // Re-focus no ISBN para escanear o próximo
+      setTimeout(() => isbnInputRef.current?.focus(), 200);
+    } else {
+      setDialogOpen(false);
+      if (turboMode) setTurboMode(false);
+    }
     fetchLivros();
   };
+
+  // ⚡ AUTO-SAVE: Salva automaticamente quando todos os dados estão completos
+  const turboAutoSave = useCallback(async (bookForm: typeof emptyForm) => {
+    if (!autoSaveEnabled || !turboMode || saving || editingId) return;
+    // Só auto-save se tiver título, autor E capa (dados completos)
+    if (!bookForm.titulo.trim() || !bookForm.autor.trim() || !bookForm.capa_url) return;
+
+    setSaving(true);
+    const payload = {
+      titulo: bookForm.titulo.trim(),
+      autor: bookForm.autor.trim(),
+      tradutor: bookForm.tradutor.trim() || null,
+      editora: bookForm.editora.trim() || null,
+      genero: bookForm.genero.trim() || null,
+      isbn: bookForm.isbn.trim() || null,
+      ano_publicacao: bookForm.ano_publicacao ? parseInt(bookForm.ano_publicacao) : null,
+      capa_url: bookForm.capa_url || null,
+    };
+
+    const { error } = await supabase.from("livros").insert(payload);
+    if (error) {
+      toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
+    } else {
+      setLastSavedTitle(bookForm.titulo);
+      setSessionCount(prev => prev + 1);
+      toast({ title: `⚡ Salvo automaticamente!`, description: `"${bookForm.titulo}" cadastrado. Escaneie o próximo!` });
+    }
+    setSaving(false);
+    setForm(emptyForm);
+    setImageFile(null);
+    setSearchProgress("");
+    setTimeout(() => isbnInputRef.current?.focus(), 200);
+    fetchLivros();
+  }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
 
   // Auto-fetch quando escaneia o ISBN (10 ou 13 digitos)
   useEffect(() => {
@@ -178,6 +245,7 @@ const Acervo = () => {
     if (!targetIsbn) return;
 
     setFetchingIsbn(true);
+    setSearchProgress("Preparando busca...");
     try {
       let cleanIsbn = targetIsbn.replace(/[^0-9X]/gi, "");
 
@@ -351,6 +419,7 @@ const Acervo = () => {
       // ========================================
       // BUSCA ULTRA-PARALELA — TODAS AS VARIANTES AO MESMO TEMPO
       // ========================================
+      setSearchProgress("Consultando Google Books, BrasilAPI, OpenLibrary...");
       type BookResult = { titulo: string; autor: string; tradutor: string; editora: string; ano: string; genero: string; capa_url: string; descricao: string; cats: string[]; googleVolumeId: string; score: number };
 
       const fetchSingleIsbn = async (isbn: string): Promise<BookResult> => {
@@ -461,6 +530,8 @@ const Acervo = () => {
       // ========================================
       const allResults = await Promise.allSettled(allIsbns.map(isbn => fetchSingleIsbn(isbn)));
 
+      setSearchProgress("Analisando resultados...");
+
       // Coletar todos os resultados bem-sucedidos
       const validResults: { isbn: string; data: BookResult }[] = [];
       for (let i = 0; i < allResults.length; i++) {
@@ -519,6 +590,7 @@ const Acervo = () => {
       const needsGenre = !bookData.genero;
 
       if (bookData.titulo && (needsCover || needsGenre || !bookData.editora)) {
+        setSearchProgress("Buscando capa e gênero...");
         const wave2: Promise<void>[] = [];
 
         // Google Volume Detail (melhor capa + editora + gênero)
@@ -692,6 +764,21 @@ const Acervo = () => {
         const correctedMsg = usedIsbn !== cleanIsbn ? "\n📝 ISBN corrigido automaticamente." : "";
         if (missing.length === 0) {
           toast({ title: "✅ Dados completos!", description: `Todos os 6 campos preenchidos automaticamente.${correctedMsg}` });
+          // ⚡ AUTO-SAVE no modo turbo quando dados completos
+          if (turboMode && autoSaveEnabled) {
+            const autoForm = {
+              ...emptyForm,
+              titulo: bookData.titulo,
+              autor: bookData.autor,
+              tradutor: bookData.tradutor,
+              editora: bookData.editora,
+              ano_publicacao: bookData.ano,
+              genero: bookData.genero,
+              capa_url: bookData.capa_url,
+              isbn: usedIsbn,
+            };
+            setTimeout(() => turboAutoSave(autoForm), 500);
+          }
         } else if (missing.length <= 2) {
           toast({ title: "✅ Quase tudo encontrado!", description: `Faltou: ${missing.join(", ")}. Preencha manualmente.${correctedMsg}` });
         } else {
@@ -704,6 +791,7 @@ const Acervo = () => {
       toast({ title: "Erro na busca", description: "Ocorreu um erro inesperado ao buscar dados. Tente novamente.", variant: "destructive" });
     } finally {
       setFetchingIsbn(false);
+      setSearchProgress("");
     }
   };
 
@@ -883,9 +971,14 @@ const Acervo = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-foreground">Acervo</h1>
-        <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
-          <Plus className="mr-2 h-4 w-4" /> Cadastrar Livro
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openTurboDialog} variant="outline" className="border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 shadow-sm">
+            <Zap className="mr-2 h-4 w-4" /> Modo Turbo
+          </Button>
+          <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
+            <Plus className="mr-2 h-4 w-4" /> Cadastrar Livro
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -1035,24 +1128,51 @@ const Acervo = () => {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) { setTurboMode(false); setSearchProgress(""); }
+      }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Editar Livro" : "Cadastrar Livro"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {turboMode && <Zap className="h-5 w-5 text-amber-500" />}
+              {editingId ? "Editar Livro" : turboMode ? "Cadastro Turbo" : "Cadastrar Livro"}
+              {turboMode && sessionCount > 0 && (
+                <Badge className="bg-green-100 text-green-800 border-green-200 ml-2">
+                  <Package className="h-3 w-3 mr-1" /> {sessionCount} cadastrado{sessionCount > 1 ? "s" : ""}
+                </Badge>
+              )}
+            </DialogTitle>
             <DialogDescription>
-              {editingId ? "Atualize as informações do livro." : "Preencha os dados do novo livro."}
+              {editingId ? "Atualize as informações do livro." :
+                turboMode ? "Escaneie o ISBN → dados preenchidos → salvo automaticamente! 🔄" :
+                "Preencha os dados do novo livro."}
             </DialogDescription>
           </DialogHeader>
+
+          {/* ⚡ Banner do último livro salvo (modo turbo) */}
+          {turboMode && lastSavedTitle && (
+            <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg text-sm animate-in fade-in slide-in-from-top-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              <span className="text-green-800 truncate">
+                <strong>Salvo:</strong> {lastSavedTitle}
+              </span>
+              <ChevronRight className="h-4 w-4 text-green-400 shrink-0" />
+              <span className="text-green-600 text-xs whitespace-nowrap">Próximo →</span>
+            </div>
+          )}
+
           <div className="space-y-4">
 
-            {/* Auto Fetch por ISBN */}
-            <div className="space-y-2 bg-blue-50/50 p-3.5 rounded-lg border border-blue-100">
-              <Label htmlFor="isbn" className="text-blue-800 font-semibold flex items-center gap-1.5">
-                <Search className="h-4 w-4" /> Busca Rápida por ISBN
+            {/* Auto Fetch por ISBN — SEÇÃO PRINCIPAL */}
+            <div className={`space-y-2 p-3.5 rounded-lg border ${turboMode ? 'bg-amber-50/60 border-amber-200' : 'bg-blue-50/50 border-blue-100'}`}>
+              <Label htmlFor="isbn" className={`font-semibold flex items-center gap-1.5 ${turboMode ? 'text-amber-800' : 'text-blue-800'}`}>
+                <ScanBarcode className="h-4 w-4" /> {turboMode ? "⚡ Escaneie o ISBN" : "Busca Rápida por ISBN"}
               </Label>
               <div className="flex gap-2">
                 <Input
                   id="isbn"
+                  ref={isbnInputRef}
                   value={form.isbn}
                   onChange={(e) => setForm({ ...form, isbn: e.target.value })}
                   onKeyDown={(e) => {
@@ -1061,21 +1181,49 @@ const Acervo = () => {
                       fetchBookByIsbn(form.isbn);
                     }
                   }}
-                  className="bg-white border-blue-200 focus-visible:ring-blue-500"
-                  placeholder="Escaneie o código de barras ou digite..."
+                  className={`bg-white ${turboMode ? 'border-amber-300 focus-visible:ring-amber-500 text-lg font-mono' : 'border-blue-200 focus-visible:ring-blue-500'}`}
+                  placeholder={turboMode ? "Aponte o leitor aqui..." : "Escaneie o código de barras ou digite..."}
+                  autoFocus={!editingId}
                 />
                 <Button
                   type="button"
-                  className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm"
+                  className={`shrink-0 shadow-sm ${turboMode ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                   onClick={() => fetchBookByIsbn()}
                   disabled={fetchingIsbn || !form.isbn}
                 >
-                  {fetchingIsbn ? "Buscando..." : "Buscar Dados"}
+                  {fetchingIsbn ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
                 </Button>
               </div>
-              <p className="text-[11px] text-blue-600/80 leading-tight">
-                Dica: Use um leitor de código de barras físico. O sistema detecta e preenche tudo sozinho!
-              </p>
+
+              {/* Indicador de progresso animado */}
+              {searchProgress && (
+                <div className="flex items-center gap-2 text-xs text-blue-700 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>{searchProgress}</span>
+                </div>
+              )}
+
+              {/* Toggle auto-save (modo turbo) */}
+              {turboMode && (
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-[11px] text-amber-700/80 leading-tight">
+                    {autoSaveEnabled ? "Auto-save ativado: dados completos = salvo!" : "Auto-save desativado."}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+                  >
+                    {autoSaveEnabled ? "Desativar" : "Ativar"} auto-save
+                  </Button>
+                </div>
+              )}
+              {!turboMode && (
+                <p className="text-[11px] text-blue-600/80 leading-tight">
+                  Dica: Use um leitor de código de barras físico. O sistema detecta e preenche tudo sozinho!
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1164,11 +1312,25 @@ const Acervo = () => {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Salvando..." : editingId ? "Atualizar" : "Cadastrar"}
-            </Button>
+          <DialogFooter className="flex gap-2">
+            {turboMode ? (
+              <>
+                <Button variant="outline" onClick={() => { setDialogOpen(false); setTurboMode(false); }}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar ({sessionCount})
+                </Button>
+                <Button onClick={handleSave} disabled={saving || !form.titulo.trim()} className="bg-amber-600 hover:bg-amber-700">
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                  {saving ? "Salvando..." : "Salvar e Próximo"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? "Salvando..." : editingId ? "Atualizar" : "Cadastrar"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
