@@ -110,18 +110,22 @@ export const getAllIsbnVariants = (isbn: string): string[] => {
 };
 
 // ==========================================
-// CAPA EM ALTA RESOLUÇÃO
+// CAPA EM ALTA RESOLUÇÃO E ANTI-ERROS
 // ==========================================
-const upgradeGoogleCover = (url: string): string =>
-  url ? url.replace("&edge=curl", "").replace(/zoom=\d/, "zoom=0").replace("http:", "https:") : "";
+const upgradeGoogleCover = (url: string): string => {
+  if (!url) return "";
+  // Força HTTPS, remove cantos enrolados (edge=curl) e tenta puxar o zoom mais limpo
+  return url.replace("&edge=curl", "")
+            .replace(/zoom=[1-9]/, "zoom=0")
+            .replace("http:", "https:");
+};
 
 /** 
  * Tenta obter capa de alta resolução pelo Google Books Publisher Content API 
- * Formato: https://books.google.com/books/publisher/content/images/frontcover/{volumeId}?fife=w400-h600
  */
 const getHighResCover = (volumeId: string): string => {
   if (!volumeId) return "";
-  return `https://books.google.com/books/publisher/content/images/frontcover/${volumeId}?fife=w400-h600&source=gbs_api`;
+  return `https://books.google.com/books/publisher/content/images/frontcover/${volumeId}?fife=w600-h900&source=gbs_api`;
 };
 
 // ==========================================
@@ -255,20 +259,19 @@ type RawBookResult = {
   cats: string[];
   googleVolumeId: string;
   score: number;
+  tem_capa_boa: boolean; // Indica se achamos uma capa local confiável
 };
 
 const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
-  const b: RawBookResult = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", cats: [], googleVolumeId: "", score: 0 };
+  const b: RawBookResult = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", cats: [], googleVolumeId: "", score: 0, tem_capa_boa: false };
 
-  // === ONDA 1: TODAS AS APIs EM PARALELO (7 endpoints!) ===
+  // === ONDA 1: TODAS AS APIs EM PARALELO ===
   const [googleR, googlePtR, brasilR, olBooksR, olEditionR, brasilAllR] = await Promise.allSettled([
     safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3`),
     safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&langRestrict=pt&maxResults=3`),
-    // BrasilAPI V1 — providers específicos (timeout curto)
     safeFetchJson(`https://brasilapi.com.br/api/isbn/v1/${isbn}?providers=mercado-editorial,cbl,open-library`, 8000),
     safeFetchJson(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`),
     safeFetchJson(`https://openlibrary.org/isbn/${isbn}.json`),
-    // BrasilAPI V1 — SEM filtro de provider (captura TODOS) — NOVA API!
     safeFetchJson(`https://brasilapi.com.br/api/isbn/v1/${isbn}`, 10000),
   ]);
 
@@ -278,7 +281,6 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
 
   let bestGoogle = gPt?.items?.length > 0 ? gPt.items[0] : (gd?.items?.length > 0 ? gd.items[0] : null);
 
-  // Match exato pelo ISBN nos resultados do Google
   const allGoogleItems = [...(gPt?.items || []), ...(gd?.items || [])];
   for (const item of allGoogleItems) {
     const ids = item.volumeInfo?.industryIdentifiers || [];
@@ -300,63 +302,53 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
     }
     b.editora = v.publisher || "";
     b.ano = v.publishedDate ? v.publishedDate.substring(0, 4) : "";
-    
-    // MELHORIA: Tentar obter capa em alta resolução
-    if (v.imageLinks) {
-      const hiRes = v.imageLinks.extraLarge || v.imageLinks.large || v.imageLinks.medium || "";
-      b.capa_url = upgradeGoogleCover(hiRes || v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || "");
-    }
-    // MELHORIA: Se tiver volumeId, tentar capa publisher (alta qualidade)
-    if (!b.capa_url && b.googleVolumeId) {
-      b.capa_url = getHighResCover(b.googleVolumeId);
-    }
-    
     b.descricao = v.description || "";
     if (v.categories) b.cats.push(...v.categories);
     if (v.language === "pt") b.score += 5;
+
+    // CAPA: Se for capa miniatura, rejeita temporariamente para abrir espaço para a BrasilAPI pegar a boa
+    if (v.imageLinks) {
+      const isHighRes = !!(v.imageLinks.extraLarge || v.imageLinks.large || v.imageLinks.medium);
+      const isLowRes = !!(v.imageLinks.thumbnail || v.imageLinks.smallThumbnail);
+      b.capa_url = upgradeGoogleCover(v.imageLinks.extraLarge || v.imageLinks.large || v.imageLinks.medium || v.imageLinks.thumbnail || "");
+      b.tem_capa_boa = isHighRes; // Se for miniatura lixo, tem_capa_boa = false
+    }
+    // ESTRATÉGIA SUPREMA: se for a API do Google (e não for miniatura fraca), usar o Content Publisher API
+    if (!b.tem_capa_boa && b.googleVolumeId && v.language !== "en") {
+      b.capa_url = getHighResCover(b.googleVolumeId);
+      b.tem_capa_boa = true;
+    }
   }
 
-  // === PROCESSAR BRASILAPI (provider filtrado) ===
+  // === PROCESSAR BRASILAPI (MAIOR CONFIABILIDADE DE CAPAS NACIONAIS) ===
   const bd = brasilR.status === "fulfilled" ? brasilR.value : null;
-  if (bd && !bd.message) {
-    if (bd.title) { b.titulo = bd.title; b.score += 10; }
-    if (bd.authors?.length > 0) {
-      const knownOriginals = bestGoogle?.volumeInfo?.authors || [];
-      const ext = extractTranslators(bd.authors, knownOriginals);
+  const bdAll = brasilAllR.status === "fulfilled" ? brasilAllR.value : null;
+  const bestBd = (bd && !bd.message) ? bd : ((bdAll && !bdAll.message) ? bdAll : null);
+
+  if (bestBd) {
+    if (!b.titulo || (bestBd.title && bestBd.title.length > b.titulo.length)) { b.titulo = bestBd.title; b.score += 10; }
+    if (bestBd.authors?.length > 0) {
+      const ext = extractTranslators(bestBd.authors);
       b.autor = ext.authors || b.autor;
       if (ext.translators) b.tradutor = ext.translators;
     }
-    if (bd.publisher) b.editora = bd.publisher;
-    if (bd.year) b.ano = String(bd.year);
-    if (bd.cover_url) b.capa_url = bd.cover_url;
-    if (bd.synopsis) b.descricao = bd.synopsis;
-    if (bd.subjects?.length > 0) {
-      b.cats.push(...bd.subjects.filter((s: string) => !s.startsWith("series:")));
+    if (bestBd.publisher) b.editora = bestBd.publisher;
+    if (bestBd.year) b.ano = String(bestBd.year);
+    if (bestBd.synopsis) b.descricao = bestBd.synopsis;
+    if (bestBd.subjects?.length > 0) {
+      b.cats.push(...bestBd.subjects.filter((s: string) => !s.startsWith("series:")));
     }
-    // MELHORIA: capturar dimensões e páginas para metadados
-    if (bd.page_count && !b.descricao) b.descricao = `${bd.page_count} páginas`;
-  }
-
-  // === PROCESSAR BRASILAPI (todos os providers) — NOVA! ===
-  const bdAll = brasilAllR.status === "fulfilled" ? brasilAllR.value : null;
-  if (bdAll && !bdAll.message && bdAll !== bd) {
-    // Preenche gaps que o filtrado não pegou
-    if (!b.titulo && bdAll.title) { b.titulo = bdAll.title; b.score += 8; }
-    if (!b.autor && bdAll.authors?.length > 0) {
-      const ext = extractTranslators(bdAll.authors);
-      b.autor = ext.authors;
-      if (ext.translators) b.tradutor = ext.translators;
-    }
-    if (!b.editora && bdAll.publisher) b.editora = bdAll.publisher;
-    if (!b.ano && bdAll.year) b.ano = String(bdAll.year);
-    if (!b.capa_url && bdAll.cover_url) b.capa_url = bdAll.cover_url;
-    if (!b.descricao && bdAll.synopsis) b.descricao = bdAll.synopsis;
-    if (bdAll.subjects?.length > 0) {
-      b.cats.push(...bdAll.subjects.filter((s: string) => !s.startsWith("series:")));
+    if (bestBd.page_count && !b.descricao) b.descricao = `${bestBd.page_count} páginas`;
+    
+    // SUPREMO: Prioridade ABSOLUTA para a capa da BrasilAPI / CBL. Ela é a certa 99% das vezes para nacionais.
+    if (bestBd.cover_url && (bestBd.cover_url.includes("mercadoeditorial") || bestBd.cover_url.includes("cbl") || !b.tem_capa_boa)) {
+      b.capa_url = bestBd.cover_url;
+      b.tem_capa_boa = true;
+      b.score += 20; // Capa nacional garantida dá score gigante
     }
   }
 
-  // === PROCESSAR OPENLIBRARY BOOKS ===
+  // === PROCESSAR OPENLIBRARY ===
   const olb = olBooksR.status === "fulfilled" ? olBooksR.value : null;
   const olBook = olb?.[`ISBN:${isbn}`];
   if (olBook) {
@@ -368,11 +360,13 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
     }
     if (!b.editora && olBook.publishers) b.editora = olBook.publishers.map((p: any) => p.name).join(", ");
     if (!b.ano && olBook.publish_date) b.ano = olBook.publish_date.match(/\d{4}/)?.[0] || "";
-    if (!b.capa_url && olBook.cover) b.capa_url = olBook.cover.large || olBook.cover.medium || "";
+    if (!b.tem_capa_boa && olBook.cover) {
+      b.capa_url = olBook.cover.large || olBook.cover.medium || b.capa_url;
+      if (olBook.cover.large) b.tem_capa_boa = true;
+    }
     if (olBook.subjects) olBook.subjects.forEach((s: any) => b.cats.push(s.name || s));
   }
 
-  // === PROCESSAR OPENLIBRARY EDITION ===
   const olE = olEditionR.status === "fulfilled" ? olEditionR.value : null;
   if (olE) {
     if (olE.publish_date) {
@@ -380,16 +374,15 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
       if (ym && (!b.ano || parseInt(ym[0]) > parseInt(b.ano))) b.ano = ym[0];
     }
     if (!b.editora && olE.publishers?.length > 0) b.editora = olE.publishers[0];
-    // MELHORIA: capturar número de páginas da OpenLibrary
     if (!b.descricao && olE.number_of_pages) b.descricao = `${olE.number_of_pages} páginas`;
   }
 
-  // Score de completude
+  // Score base complementar
   if (b.titulo) b.score += 3;
   if (b.autor) b.score += 2;
   if (b.editora) b.score += 1;
   if (b.ano) b.score += 1;
-  if (b.capa_url) b.score += 2;
+  if (b.tem_capa_boa) b.score += 5;
 
   return b;
 };
@@ -417,23 +410,21 @@ export async function searchBookByIsbn(
   const allIsbns = getAllIsbnVariants(cleanIsbn);
   const correctedIsbn = allIsbns[0];
 
-  // === ONDA 1: Busca paralela de todas as variantes de ISBN ===
   onProgress?.("Consultando Google Books, BrasilAPI, OpenLibrary...");
+  // ONDA 1 principal
   const allResults = await Promise.allSettled(allIsbns.map(isbn => fetchSingleIsbn(isbn)));
 
-  onProgress?.("Analisando resultados...");
+  onProgress?.("Analisando resultados e refinando capas...");
 
-  // Coletar resultados
   const validResults: { isbn: string; data: RawBookResult }[] = [];
   for (let i = 0; i < allResults.length; i++) {
-    if (allResults[i].status === "fulfilled") {
-      validResults.push({ isbn: allIsbns[i], data: (allResults[i] as PromiseFulfilledResult<RawBookResult>).value });
+    if (allResults[i].status === "fulfilled" && (allResults[i] as any).value.titulo) {
+      validResults.push({ isbn: allIsbns[i], data: (allResults[i] as any).value });
     }
   }
   validResults.sort((a, b) => b.data.score - a.data.score);
 
-  // Merge inteligente
-  let bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "" };
+  let bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", tem_capa_boa: false };
   let usedIsbn = correctedIsbn;
   let allCats: string[] = [];
   let bestGoogleVolumeId = "";
@@ -448,121 +439,71 @@ export async function searchBookByIsbn(
     bookData.ano = best.data.ano;
     bookData.capa_url = best.data.capa_url;
     bookData.descricao = best.data.descricao;
+    bookData.tem_capa_boa = best.data.tem_capa_boa;
     allCats = [...best.data.cats];
     bestGoogleVolumeId = best.data.googleVolumeId;
-    if (best.data.titulo) usedIsbn = best.isbn;
-    bestFonte = best.data.score >= 10 ? "BrasilAPI" : "Google Books";
+    usedIsbn = best.isbn;
+    bestFonte = best.data.score >= 20 ? "BrasilAPI" : "Google Books";
 
-    // Preencher gaps
+    // Preencher gaps, COM PRIORIDADE PARA CAPAS CONFIAVEIS
     for (let i = 1; i < validResults.length; i++) {
       const other = validResults[i].data;
-      if (!bookData.titulo && other.titulo) { bookData.titulo = other.titulo; usedIsbn = validResults[i].isbn; }
+      if (!bookData.titulo && other.titulo) bookData.titulo = other.titulo;
       if (!bookData.autor && other.autor) bookData.autor = other.autor;
       if (!bookData.tradutor && other.tradutor) bookData.tradutor = other.tradutor;
       if (!bookData.editora && other.editora) bookData.editora = other.editora;
       if (!bookData.ano && other.ano) bookData.ano = other.ano;
-      if (!bookData.capa_url && other.capa_url) bookData.capa_url = other.capa_url;
       if (!bookData.descricao && other.descricao) bookData.descricao = other.descricao;
       if (!bestGoogleVolumeId && other.googleVolumeId) bestGoogleVolumeId = other.googleVolumeId;
       allCats.push(...other.cats);
+      
+      // Merge supremo de capas: Só sobrescrever a capa principal se a atual não for boa e a Other for garantida.
+      if (!bookData.tem_capa_boa && other.tem_capa_boa) {
+        bookData.capa_url = other.capa_url;
+        bookData.tem_capa_boa = true;
+      } else if (!bookData.capa_url && other.capa_url) {
+        bookData.capa_url = other.capa_url;
+      }
     }
   }
 
-  // Aplicar gênero das categorias
   if (allCats.length > 0) {
     const g = bestGenre(allCats);
     if (g) bookData.genero = g;
   }
 
-  // === ONDA 2: Dados complementares (apenas se faltam) ===
-  const needsCover = !bookData.capa_url;
+  // === ONDA 2: CAÇADOR DE CAPAS (SUPREMO) ===
+  // Se ainda estivermos sem capa "boa" (miniatura ou erro), tentamos cirurgicamente com o ISBN ORINAL, nunca o alternativo gringo
+  const needsCover = !bookData.tem_capa_boa || !bookData.capa_url;
   const needsGenre = !bookData.genero;
 
-  if (bookData.titulo && (needsCover || needsGenre || !bookData.editora)) {
-    onProgress?.("Buscando capa e gênero...");
+  if (bookData.titulo && (needsCover || needsGenre)) {
+    onProgress?.("Resgatando capas em alta qualidade...");
     const wave2: Promise<void>[] = [];
 
-    // Google Volume Detail
-    if (bestGoogleVolumeId && (needsCover || !bookData.editora || needsGenre)) {
+    // TENTATIVA MAXIMA: API direta da Open Library para o ISBN ORIGINAL escaneado. Evita capa gringa errada.
+    if (needsCover && cleanIsbn) {
+      wave2.push(
+        fetchWithTimeout(`https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg?default=false`, { method: "HEAD", redirect: "manual" }, 3000)
+          .then(r => {
+             if (r.status === 200 || r.status === 302) {
+               bookData.capa_url = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
+               bookData.tem_capa_boa = true;
+             }
+          }).catch(() => {})
+      );
+    }
+
+    // Google Volume Detail aprofundado se faltar coisas
+    if (bestGoogleVolumeId && (!bookData.editora || needsGenre)) {
       wave2.push(
         safeFetchJson(`https://www.googleapis.com/books/v1/volumes/${bestGoogleVolumeId}`).then(data => {
           const dv = data?.volumeInfo;
           if (!dv) return;
           if (!bookData.editora && dv.publisher) bookData.editora = dv.publisher;
           if (!bookData.descricao && dv.description) bookData.descricao = dv.description;
-          if (dv.imageLinks) {
-            const best = dv.imageLinks.extraLarge || dv.imageLinks.large || dv.imageLinks.medium || dv.imageLinks.small || dv.imageLinks.thumbnail || "";
-            if (best && !bookData.capa_url) bookData.capa_url = upgradeGoogleCover(best);
-          }
           if (dv.categories && !bookData.genero) {
-            const g = bestGenre(dv.categories);
-            if (g) bookData.genero = g;
-          }
-        })
-      );
-    }
-
-    // MELHORIA: Google Books Publisher Content API para capa
-    if (needsCover && bestGoogleVolumeId) {
-      wave2.push(
-        fetchWithTimeout(getHighResCover(bestGoogleVolumeId), { method: "HEAD" }, 3000)
-          .then(r => {
-            if (r.ok && !bookData.capa_url) {
-              bookData.capa_url = getHighResCover(bestGoogleVolumeId);
-            }
-          })
-          .catch(() => {})
-      );
-    }
-
-    // OpenLibrary Search
-    if (needsGenre || needsCover) {
-      const olQuery = bookData.titulo ? `title=${encodeURIComponent(bookData.titulo)}${bookData.autor ? `&author=${encodeURIComponent(bookData.autor)}` : ''}` : `isbn=${correctedIsbn}`;
-      wave2.push(
-        safeFetchJson(`https://openlibrary.org/search.json?${olQuery}&limit=1`).then(async (sd) => {
-          const doc = sd?.docs?.[0];
-          if (!doc) return;
-          if (!bookData.titulo && doc.title) bookData.titulo = doc.title;
-          if (doc.author_name) {
-            const ext = extractTranslators(doc.author_name);
-            if (!bookData.autor && ext.authors) bookData.autor = ext.authors;
-            if (!bookData.tradutor && ext.translators) bookData.tradutor = ext.translators;
-          }
-          if (!bookData.editora && doc.publisher) bookData.editora = doc.publisher[0];
-          if (!bookData.capa_url && doc.cover_i) bookData.capa_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
-          if (!bookData.genero && doc.subject) {
-            const g = bestGenre(doc.subject.slice(0, 20));
-            if (g) bookData.genero = g;
-          }
-          if (!bookData.genero && doc.key) {
-            const wd = await safeFetchJson(`https://openlibrary.org${doc.key}.json`);
-            if (wd?.subjects?.length > 0) {
-              const g = bestGenre(wd.subjects.slice(0, 20));
-              if (g) bookData.genero = g;
-            }
-            if (!bookData.descricao && wd?.description) {
-              bookData.descricao = typeof wd.description === "string" ? wd.description : wd.description.value || "";
-            }
-          }
-        })
-      );
-    }
-
-    // Capas via OpenLibrary Covers
-    if (needsCover) {
-      wave2.push(
-        Promise.allSettled(
-          allIsbns.map(v =>
-            fetchWithTimeout(`https://covers.openlibrary.org/b/isbn/${v}-L.jpg?default=false`, { method: "HEAD", redirect: "manual" }, 4000)
-              .then(r => (r.status === 200 || r.status === 302) ? v : null)
-              .catch(() => null)
-          )
-        ).then(results => {
-          for (const r of results) {
-            if (r.status === "fulfilled" && r.value && !bookData.capa_url) {
-              bookData.capa_url = `https://covers.openlibrary.org/b/isbn/${r.value}-L.jpg`;
-              break;
-            }
+             bookData.genero = bestGenre(dv.categories) || bookData.genero;
           }
         })
       );
@@ -571,13 +512,12 @@ export async function searchBookByIsbn(
     await Promise.allSettled(wave2);
   }
 
-  // Gênero pela descrição
   if (!bookData.genero && bookData.descricao) {
     bookData.genero = genreFromDescription(bookData.descricao);
   }
 
   // === ONDA 3: Busca de tradução (livro estrangeiro) ===
-  const isLikelyForeign = validResults.length > 0 && validResults[0].data.score < 10;
+  const isLikelyForeign = bestFonte === "Google Books" && (!bookData.editora || !bookData.genero);
 
   if (bookData.titulo && (!bookData.capa_url || !bookData.genero || isLikelyForeign)) {
     onProgress?.("Buscando versão traduzida...");
