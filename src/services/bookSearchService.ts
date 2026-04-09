@@ -320,31 +320,65 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
     }
   }
 
-  // === PROCESSAR BRASILAPI (MAIOR CONFIABILIDADE DE CAPAS NACIONAIS) ===
+  // === PROCESSAR BRASILAPI (MERGE DE PROVIDERS) ===
   const bd = brasilR.status === "fulfilled" ? brasilR.value : null;
   const bdAll = brasilAllR.status === "fulfilled" ? brasilAllR.value : null;
-  const bestBd = (bd && !bd.message) ? bd : ((bdAll && !bdAll.message) ? bdAll : null);
 
-  if (bestBd) {
-    if (!b.titulo || (bestBd.title && bestBd.title.length > b.titulo.length)) { b.titulo = bestBd.title; b.score += 10; }
-    if (bestBd.authors?.length > 0) {
-      const ext = extractTranslators(bestBd.authors);
-      b.autor = ext.authors || b.autor;
-      if (ext.translators) b.tradutor = ext.translators;
+  // 1. Processa a resposta base (Geralmente OpenLibrary BR, Mercado Editorial)
+  if (bd && !bd.message) {
+    if (!b.titulo || (bd.title && bd.title.length > b.titulo.length)) { b.titulo = bd.title; b.score += 10; }
+    if (bd.authors?.length > 0) {
+      const ext = extractTranslators(bd.authors);
+      if (!b.autor) b.autor = ext.authors;
+      if (!b.tradutor && ext.translators) b.tradutor = ext.translators;
     }
-    if (bestBd.publisher) b.editora = bestBd.publisher;
-    if (bestBd.year) b.ano = String(bestBd.year);
-    if (bestBd.synopsis) b.descricao = bestBd.synopsis;
-    if (bestBd.subjects?.length > 0) {
-      b.cats.push(...bestBd.subjects.filter((s: string) => !s.startsWith("series:")));
+    if (bd.publisher && !b.editora) b.editora = bd.publisher;
+    if (bd.year) b.ano = String(bd.year);
+    if (bd.synopsis && bd.synopsis.length > b.descricao.length) b.descricao = bd.synopsis;
+    if (bd.subjects?.length > 0) {
+      b.cats.push(...bd.subjects.filter((s: string) => !s.startsWith("series:")));
     }
-    if (bestBd.page_count && !b.descricao) b.descricao = `${bestBd.page_count} páginas`;
+    if (bd.page_count && !b.descricao) b.descricao = `${bd.page_count} páginas`;
     
-    // SUPREMO: Prioridade ABSOLUTA para a capa da BrasilAPI / CBL. Ela é a certa 99% das vezes para nacionais.
-    if (bestBd.cover_url && (bestBd.cover_url.includes("mercadoeditorial") || bestBd.cover_url.includes("cbl") || !b.tem_capa_boa)) {
-      b.capa_url = bestBd.cover_url;
+    if (bd.cover_url && (bd.cover_url.includes("mercadoeditorial") || bd.cover_url.includes("cbl") || !b.tem_capa_boa)) {
+      b.capa_url = bd.cover_url;
       b.tem_capa_boa = true;
-      b.score += 20; // Capa nacional garantida dá score gigante
+      b.score += 20; 
+    }
+  }
+
+  // 2. Mescla com os dados da busca global (CBL costuma ter o ano e título oficial atualizados)
+  if (bdAll && !bdAll.message) {
+    if (!b.titulo || (bdAll.title && bdAll.title.length > b.titulo.length)) { b.titulo = bdAll.title; b.score += 10; }
+    if (bdAll.authors?.length > 0) {
+      const ext = extractTranslators(bdAll.authors);
+      if (!b.autor || b.autor.length < ext.authors.length) b.autor = ext.authors;
+      if (!b.tradutor && ext.translators) b.tradutor = ext.translators;
+    }
+    if (bdAll.publisher && !b.editora) b.editora = bdAll.publisher;
+    
+    // Especial: CBL é mais confiável para ANO OFICIAL DE EDIÇÃO NO BRASIL
+    if (bdAll.year) {
+       const bdAllYear = String(bdAll.year);
+       if (!b.ano || (bdAll.provider === "cbl" && parseInt(bdAllYear) > parseInt(b.ano))) {
+           b.ano = bdAllYear;
+       }
+    }
+    
+    if (bdAll.synopsis && bdAll.synopsis.length > 20 && bdAll.synopsis.length > b.descricao.length) {
+       b.descricao = bdAll.synopsis;
+    }
+    if (bdAll.subjects?.length > 0) {
+      b.cats.push(...bdAll.subjects.filter((s: string) => !s.startsWith("series:")));
+    }
+    if (bdAll.page_count && (!b.descricao || b.descricao.includes("páginas"))) {
+       b.descricao = `${bdAll.page_count} páginas`;
+    }
+    
+    if (bdAll.cover_url && (bdAll.cover_url.includes("mercadoeditorial") || bdAll.cover_url.includes("cbl") || !b.tem_capa_boa)) {
+      b.capa_url = bdAll.cover_url;
+      b.tem_capa_boa = true;
+      b.score += 20; 
     }
   }
 
@@ -359,7 +393,13 @@ const fetchSingleIsbn = async (isbn: string): Promise<RawBookResult> => {
       if (!b.tradutor && ext.translators) b.tradutor = ext.translators;
     }
     if (!b.editora && olBook.publishers) b.editora = olBook.publishers.map((p: any) => p.name).join(", ");
-    if (!b.ano && olBook.publish_date) b.ano = olBook.publish_date.match(/\d{4}/)?.[0] || "";
+    
+    // Manter maior ano
+    if (olBook.publish_date) {
+      const ym = String(olBook.publish_date).match(/\d{4}/);
+      if (ym && (!b.ano || parseInt(ym[0]) > parseInt(b.ano))) b.ano = ym[0];
+    }
+    
     if (!b.tem_capa_boa && olBook.cover) {
       b.capa_url = olBook.cover.large || olBook.cover.medium || b.capa_url;
       if (olBook.cover.large) b.tem_capa_boa = true;
