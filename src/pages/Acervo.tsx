@@ -1,5 +1,5 @@
-﻿import { useEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users, Zap, RotateCcw, Loader2, ScanBarcode, ChevronRight, Package } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users, Zap, RotateCcw, Loader2, ScanBarcode, ChevronRight, Package, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { uploadImage } from "@/utils/uploadImage";
 import { format, isAfter } from "date-fns";
 import ImageLightbox from "@/components/ImageLightbox";
 import { searchBookByIsbn, searchBookByTitleAuthor, getSearchStats, cleanIsbnInput } from "@/services/bookSearchService";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 type Livro = Tables<"livros">;
 
@@ -52,6 +53,7 @@ const Acervo = () => {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [lightboxUrl, setLightboxUrl] = useState("");
   const [lightboxAlt, setLightboxAlt] = useState("");
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
   // ⚡ MODO METRALHADORA: Cadastro em série ultra-rápido
   const [turboMode, setTurboMode] = useState(false);
@@ -229,6 +231,19 @@ const Acervo = () => {
     setTimeout(() => isbnInputRef.current?.focus(), 200);
     fetchLivros();
   }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
+
+  const handleBarcodeScanned = (decodedText: string) => {
+    const cleanedText = decodedText.trim();
+    if (cleanedText) {
+      setForm(prev => ({ ...prev, isbn: cleanedText }));
+      setCameraScannerOpen(false);
+      toast({
+        title: "⚡ Código lido!",
+        description: `ISBN ${cleanedText} capturado com sucesso. Buscando detalhes...`
+      });
+      fetchBookByIsbn(cleanedText);
+    }
+  };
 
   // Auto-fetch quando escaneia o ISBN (10 ou 13 digitos)
   useEffect(() => {
@@ -635,6 +650,15 @@ const Acervo = () => {
                 />
                 <Button
                   type="button"
+                  variant="outline"
+                  className={`shrink-0 border shadow-sm h-10 w-10 p-0 ${turboMode ? 'border-amber-250 bg-amber-50 hover:bg-amber-100 text-amber-700' : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700'}`}
+                  onClick={() => setCameraScannerOpen(true)}
+                  title="Escanear com a câmera do celular"
+                >
+                  <Camera className="h-4.5 w-4.5" />
+                </Button>
+                <Button
+                  type="button"
                   className={`shrink-0 shadow-sm ${turboMode ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                   onClick={() => fetchBookByIsbn()}
                   disabled={fetchingIsbn || !form.isbn}
@@ -909,6 +933,16 @@ const Acervo = () => {
         open={!!lightboxUrl}
         onClose={() => setLightboxUrl("")}
       />
+
+      {/* Dialog para o Leitor de Câmera (Barcode Scanner) */}
+      <Dialog open={cameraScannerOpen} onOpenChange={setCameraScannerOpen}>
+        <DialogContent className="sm:max-w-md p-0 border-0 overflow-hidden bg-slate-950">
+          <BarcodeScanner 
+            onScanSuccess={handleBarcodeScanned}
+            onClose={() => setCameraScannerOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
