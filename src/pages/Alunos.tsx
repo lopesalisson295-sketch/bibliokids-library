@@ -282,15 +282,15 @@ const Alunos = () => {
                           <p className="text-xs text-muted-foreground">Turma {aluno.turma}</p>
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openHistoryDialog(aluno)} title="Histórico de empréstimos">
-                          <History className="h-3.5 w-3.5" />
+                      <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-slate-100/60 dark:bg-slate-900/60 p-1 md:p-0 rounded-lg border md:border-0 border-border/40 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => openHistoryDialog(aluno)} title="Histórico de empréstimos">
+                          <History className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(aluno)}>
-                          <Pencil className="h-3.5 w-3.5" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => openEditDialog(aluno)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setDeletingId(aluno.id); setDeleteDialogOpen(true); }}>
-                          <Trash2 className="h-3.5 w-3.5" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { setDeletingId(aluno.id); setDeleteDialogOpen(true); }}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardContent>
@@ -304,7 +304,7 @@ const Alunos = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Aluno" : "Cadastrar Aluno"}</DialogTitle>
             <DialogDescription>
@@ -368,7 +368,7 @@ const Alunos = () => {
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[92vw] sm:max-w-md rounded-2xl p-5">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir aluno?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -386,7 +386,7 @@ const Alunos = () => {
 
       {/* History Dialog */}
       <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5 text-emerald-500" />

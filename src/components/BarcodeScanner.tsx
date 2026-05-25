@@ -8,9 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 interface BarcodeScannerProps {
   onScanSuccess: (decodedText: string) => void;
   onClose: () => void;
+  isProcessing?: boolean;
 }
 
-export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScannerProps) {
+export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = false }: BarcodeScannerProps) {
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>("");
   const [isScanning, setIsScanning] = useState(false);
@@ -122,6 +123,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
           ]
         },
         (decodedText) => {
+          if (isProcessing) return;
           playBeep();
           if (navigator.vibrate) {
             navigator.vibrate(100);
@@ -261,6 +263,15 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
           <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-3">
             <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
             <span className="text-xs text-slate-400 font-medium">Iniciando câmera traseira...</span>
+          </div>
+        )}
+
+        {/* Overlay de Processamento do Livro (Modo Turbo) */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-30">
+            <Loader2 className="h-8 w-8 text-amber-400 animate-spin" />
+            <span className="text-sm text-amber-200 font-semibold animate-pulse">Buscando & Salvando Livro...</span>
+            <span className="text-[10px] text-slate-400">Modo Turbo Ativo ⚡</span>
           </div>
         )}
       </div>

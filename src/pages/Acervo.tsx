@@ -54,6 +54,7 @@ const Acervo = () => {
   const [lightboxUrl, setLightboxUrl] = useState("");
   const [lightboxAlt, setLightboxAlt] = useState("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
+  const [isProcessingScanner, setIsProcessingScanner] = useState(false);
 
   // ⚡ MODO METRALHADORA: Cadastro em série ultra-rápido
   const [turboMode, setTurboMode] = useState(false);
@@ -232,16 +233,35 @@ const Acervo = () => {
     fetchLivros();
   }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
 
-  const handleBarcodeScanned = (decodedText: string) => {
+  const handleBarcodeScanned = async (decodedText: string) => {
     const cleanedText = decodedText.trim();
-    if (cleanedText) {
-      setForm(prev => ({ ...prev, isbn: cleanedText }));
+    if (!cleanedText || isProcessingScanner) return;
+
+    setIsProcessingScanner(true);
+    setForm(prev => ({ ...prev, isbn: cleanedText }));
+    
+    if (!turboMode) {
       setCameraScannerOpen(false);
-      toast({
-        title: "⚡ Código lido!",
-        description: `ISBN ${cleanedText} capturado com sucesso. Buscando detalhes...`
-      });
-      fetchBookByIsbn(cleanedText);
+    }
+
+    toast({
+      title: "⚡ Código lido!",
+      description: `ISBN ${cleanedText} capturado. Buscando dados do livro...`
+    });
+
+    try {
+      await fetchBookByIsbn(cleanedText);
+    } catch (err) {
+      console.error("Erro na busca automática:", err);
+    } finally {
+      if (turboMode) {
+        // Cooldown de 2 segundos para evitar dupla leitura acidental
+        setTimeout(() => {
+          setIsProcessingScanner(false);
+        }, 2000);
+      } else {
+        setIsProcessingScanner(false);
+      }
     }
   };
 
@@ -541,9 +561,9 @@ const Acervo = () => {
                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 shadow-sm border border-emerald-200 cursor-default px-2 py-0.5 font-medium">Disponível</Badge>
                   )}
                 </div>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4 mt-2">
-                    <div className="flex gap-4 min-w-0 flex-1">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mt-2">
+                    <div className="flex gap-3 sm:gap-4 min-w-0 flex-1 w-full">
                       {livro.capa_url ? (
                         <img
                           src={livro.capa_url}
@@ -571,15 +591,16 @@ const Acervo = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openHistoryDialog(livro)} title="Histórico de empréstimos">
-                        <History className="h-3.5 w-3.5" />
+                    {/* Botões de Ação Adaptados para Mobile */}
+                    <div className="flex sm:flex-col gap-1 self-end sm:self-start opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-slate-100/60 dark:bg-slate-900/60 p-1 sm:p-0 rounded-lg border sm:border-0 border-border/40 w-full sm:w-auto justify-end">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => openHistoryDialog(livro)} title="Histórico de empréstimos">
+                        <History className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(livro)}>
-                        <Pencil className="h-3.5 w-3.5" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => openEditDialog(livro)}>
+                        <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setDeletingId(livro.id); setDeleteDialogOpen(true); }}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { setDeletingId(livro.id); setDeleteDialogOpen(true); }}>
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -595,7 +616,7 @@ const Acervo = () => {
         setDialogOpen(open);
         if (!open) { setTurboMode(false); setSearchProgress(""); }
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {turboMode && <Zap className="h-5 w-5 text-amber-500" />}
@@ -809,7 +830,7 @@ const Acervo = () => {
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[92vw] sm:max-w-md rounded-2xl p-5">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir livro?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -827,7 +848,7 @@ const Acervo = () => {
 
       {/* History Dialog */}
       <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5 text-primary" />
@@ -940,6 +961,7 @@ const Acervo = () => {
           <BarcodeScanner 
             onScanSuccess={handleBarcodeScanned}
             onClose={() => setCameraScannerOpen(false)}
+            isProcessing={isProcessingScanner}
           />
         </DialogContent>
       </Dialog>
