@@ -20,6 +20,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
   const [soundEnabled, setSoundEnabled] = useState(true);
   
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
+  const startAttemptRef = useRef<number>(0);
   const { toast } = useToast();
   
   const playBeep = () => {
@@ -45,79 +46,65 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
   };
 
   useEffect(() => {
-    setIsLoading(true);
-    Html5Qrcode.getCameras()
-      .then((devices) => {
-        if (devices && devices.length > 0) {
-          setCameras(devices);
-          
-          // Buscar câmera traseira padrão
-          const backCamera = devices.find(d => 
-            d.label.toLowerCase().includes("back") || 
-            d.label.toLowerCase().includes("traseira") ||
-            d.label.toLowerCase().includes("environment")
-          );
-          
-          setSelectedCameraId(backCamera ? backCamera.id : devices[0].id);
-        } else {
-          toast({
-            title: "Nenhuma câmera encontrada",
-            description: "Certifique-se de que seu aparelho possui uma câmera funcional.",
-            variant: "destructive"
-          });
-          onClose();
-        }
-      })
-      .catch((err) => {
-        console.error("Error getting cameras", err);
-        toast({
-          title: "Sem permissão de câmera",
-          description: "Por favor, autorize o acesso à câmera para usar o leitor de código de barras.",
-          variant: "destructive"
-        });
-        onClose();
-      })
-      .finally(() => setIsLoading(false));
+    // Atraso de 250ms antes de iniciar o scanner para dar tempo ao Dialog do RadixUI de montar o DOM
+    const timer = setTimeout(() => {
+      startScanner();
+    }, 250);
 
     return () => {
-      if (html5QrcodeRef.current) {
-        if (html5QrcodeRef.current.isScanning) {
-          html5QrcodeRef.current.stop().catch(console.error);
-        }
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedCameraId || isLoading) return;
-    
-    startScanner(selectedCameraId);
-    
-    return () => {
+      clearTimeout(timer);
       stopScanner();
     };
-  }, [selectedCameraId, isLoading]);
+  }, [selectedCameraId]);
 
-  const startScanner = async (cameraId: string) => {
+  const startScanner = async () => {
+    const attemptId = ++startAttemptRef.current;
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
+      // 1. Polling seguro para garantir que o elemento viewport foi montado no DOM pelo Dialog
+      let element = document.getElementById("barcode-scanner-viewport");
+      if (!element) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          // Se uma nova tentativa de inicialização começou enquanto esperávamos, aborta esta
+          if (attemptId !== startAttemptRef.current) return;
+          element = document.getElementById("barcode-scanner-viewport");
+          if (element) break;
+        }
+      }
+
+      if (!element) {
+        throw new Error("Viewport do scanner não encontrado no DOM (limite de tempo excedido).");
+      }
+
+      // 2. Parar qualquer scanner ativo
       if (html5QrcodeRef.current) {
         if (html5QrcodeRef.current.isScanning) {
           await html5QrcodeRef.current.stop();
         }
+        html5QrcodeRef.current = null;
       }
-      
+
+      // 3. Instanciar o leitor HTML5-QRCode
       const html5Qrcode = new Html5Qrcode("barcode-scanner-viewport");
       html5QrcodeRef.current = html5Qrcode;
-      
+
+      // Configuração de câmera ideal:
+      // Se tivermos um cameraId específico selecionado pelo usuário, usamos ele.
+      // Se não, no celular iniciamos direto pedindo a câmera traseira ('environment').
+      const cameraConfig = selectedCameraId 
+        ? { deviceId: selectedCameraId } 
+        : { facingMode: "environment" };
+
       await html5Qrcode.start(
-        cameraId,
+        cameraConfig as any,
         {
-          fps: 15,
+          fps: 12, // Excelente taxa para mobile sem drenar bateria
           qrbox: (width, height) => {
-            const boxWidth = Math.min(width * 0.85, 320);
-            const boxHeight = Math.min(height * 0.35, 140);
+            // Área de foco retangular ótima para códigos de barras lineares
+            const boxWidth = Math.min(width * 0.85, 300);
+            const boxHeight = Math.min(height * 0.35, 110);
             return {
               x: (width - boxWidth) / 2,
               y: (height - boxHeight) / 2,
@@ -139,46 +126,67 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
           if (navigator.vibrate) {
             navigator.vibrate(100);
           }
+          // Chamar callback de sucesso com o código lido
           onScanSuccess(decodedText);
         },
         () => {
-          // Ignorado - scan silencioso em progresso
+          // Callback de busca em andamento (silencioso para performance)
         }
       );
-      
+
+      // Confirmar que esta tentativa ainda é a ativa
+      if (attemptId !== startAttemptRef.current) return;
+
       setIsScanning(true);
+      setIsLoading(false);
       setIsTorchOn(false);
-      
+
+      // Verificar se a câmera ativa suporta Lanterna (Flash/Torch)
       try {
         const track = html5Qrcode.getRunningTrackCapabilities();
-        if (track && (track as any).torch) {
-          setHasTorch(true);
-        } else {
-          setHasTorch(false);
-        }
+        setHasTorch(!!(track && (track as any).torch));
       } catch {
         setHasTorch(false);
       }
+
+      // 4. Buscar câmeras disponíveis em segundo plano para preencher o seletor (se ainda não preenchido)
+      if (cameras.length === 0) {
+        Html5Qrcode.getCameras()
+          .then((devices) => {
+            if (attemptId === startAttemptRef.current && devices && devices.length > 0) {
+              setCameras(devices);
+              
+              // Sincronizar o selectedCameraId com o ID da câmera real que o browser escolheu
+              const activeTrack = html5Qrcode.getRunningTrackSettings();
+              if (activeTrack && activeTrack.deviceId) {
+                setSelectedCameraId(activeTrack.deviceId);
+              }
+            }
+          })
+          .catch((err) => console.warn("Erro ao buscar lista de câmeras:", err));
+      }
+
+    } catch (err: any) {
+      console.error("Erro completo ao iniciar câmera:", err);
+      if (attemptId !== startAttemptRef.current) return;
       
-    } catch (err) {
-      console.error("Failed to start scanner:", err);
       toast({
-        title: "Falha ao iniciar câmera",
-        description: "Não foi possível abrir a câmera selecionada. Tente outra.",
+        title: "Acesso à câmera recusado",
+        description: "Não foi possível acessar a câmera. Certifique-se de dar permissões de câmera e que nenhuma outra aba/app a esteja usando.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
+      onClose();
     }
   };
 
   const stopScanner = async () => {
+    startAttemptRef.current++;
     if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
       try {
         await html5QrcodeRef.current.stop();
         setIsScanning(false);
       } catch (err) {
-        console.error("Failed to stop scanner:", err);
+        console.error("Erro ao parar leitor:", err);
       }
     }
   };
@@ -192,74 +200,80 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
       });
       setIsTorchOn(nextTorchState);
     } catch (err) {
-      console.error("Failed to toggle torch:", err);
+      console.error("Falha ao ligar/desligar lanterna:", err);
       toast({
-        title: "Erro na lanterna",
-        description: "Não foi possível acionar a lanterna do aparelho.",
+        title: "Erro na Lanterna",
+        description: "Seu dispositivo ou navegador não permitiu acionar o flash no momento.",
         variant: "destructive"
       });
     }
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-md mx-auto bg-slate-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+    <div className="flex flex-col items-center w-full max-w-md mx-auto bg-slate-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between w-full p-4 border-b border-slate-900 bg-slate-950">
         <div className="flex items-center gap-2">
           <Camera className="h-5 w-5 text-emerald-400 animate-pulse" />
           <span className="font-semibold text-sm text-slate-200">Leitor de Código de Barras</span>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-900 text-slate-400 hover:text-white" onClick={onClose}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 hover:bg-slate-900 text-slate-400 hover:text-white" 
+          onClick={onClose}
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Janela de Câmera */}
+      {/* Janela da Câmera (Viewport) */}
       <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+        {/* Este é o elemento exato onde o html5-qrcode renderiza o stream */}
         <div id="barcode-scanner-viewport" className="w-full h-full object-cover"></div>
 
-        {/* Overlay do Scanner de Design Premium */}
+        {/* Overlay do Scanner de Alta Qualidade */}
         {isScanning && !isLoading && (
           <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
-            {/* Caixa Guia de Foco */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-[320px] h-[35%] max-h-[140px] border-2 border-emerald-400 rounded-xl flex items-center justify-center bg-black/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]">
-              {/* Bordas extras para destacar o cantos */}
-              <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-emerald-500 rounded-tl-sm"></div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-emerald-500 rounded-tr-sm"></div>
-              <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-emerald-500 rounded-bl-sm"></div>
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-emerald-500 rounded-br-sm"></div>
+            {/* Retângulo de Foco */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-[320px] h-[35%] max-h-[140px] border-2 border-emerald-400 rounded-xl flex items-center justify-center bg-black/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]">
+              {/* Cantoneiras estilizadas */}
+              <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm"></div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-emerald-400 rounded-tr-sm"></div>
+              <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-emerald-400 rounded-bl-sm"></div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-emerald-400 rounded-br-sm"></div>
 
-              {/* Linha do Laser Vermelho */}
+              {/* Linha Laser Pulsante */}
               <div className="absolute w-[96%] h-0.5 bg-red-500/80 shadow-[0_0_8px_2px_rgba(239,68,68,0.7)] animate-[scan_2s_ease-in-out_infinite]"></div>
             </div>
 
-            {/* Texto de Ajuda */}
+            {/* Texto de orientação */}
             <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
-              <span className="inline-block bg-slate-900/80 border border-slate-800 text-[11px] font-medium text-slate-300 px-3 py-1 rounded-full shadow-md">
-                Posicione o código de barras no centro do retângulo
+              <span className="inline-block bg-slate-900/90 border border-slate-800 text-[11px] font-medium text-slate-300 px-3 py-1 rounded-full shadow-md">
+                Aponte para o código de barras no centro do retângulo
               </span>
             </div>
           </div>
         )}
 
-        {/* Overlay de Inicialização */}
+        {/* Overlay de Inicialização e Carregamento */}
         {isLoading && (
           <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-3">
             <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
-            <span className="text-xs text-slate-400 font-medium">Iniciando câmera...</span>
+            <span className="text-xs text-slate-400 font-medium">Iniciando câmera traseira...</span>
           </div>
         )}
       </div>
 
-      {/* Controles do Rodapé */}
+      {/* Painel de Controles */}
       <div className="w-full p-4 bg-slate-950 border-t border-slate-900 flex flex-col gap-3">
-        {/* Seleção de Câmeras (Mobile com multi-câmeras traseiras) */}
+        {/* Seletor de Câmeras Traseiras e Frontais (Mostrado apenas se houver mais de uma câmera) */}
         {cameras.length > 1 && (
           <div className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4 text-slate-400 shrink-0" />
             <Select value={selectedCameraId} onValueChange={setSelectedCameraId}>
               <SelectTrigger className="w-full bg-slate-900 border-slate-800 text-white hover:bg-slate-850 h-9 text-xs">
-                <SelectValue placeholder="Selecione a câmera" />
+                <SelectValue placeholder="Alternar câmera" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800 text-white">
                 {cameras.map((cam) => (
@@ -272,10 +286,11 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
           </div>
         )}
 
-        {/* Configurações Auxiliares (Lanterna e Mudo) */}
+        {/* Botões Auxiliares (Lanterna e Som de Beep) */}
         <div className="flex justify-between items-center mt-1">
-          {/* Som Beep de Confirmação */}
+          {/* Habilitar / Desabilitar Som */}
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             className="h-8 text-xs text-slate-400 hover:text-white hover:bg-slate-900 gap-1.5 px-2.5 rounded-lg"
@@ -283,18 +298,19 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
           >
             {soundEnabled ? (
               <>
-                <Volume2 className="h-4 w-4 text-emerald-400" /> Som Ativado
+                <Volume2 className="h-4 w-4 text-emerald-400" /> Beep Ativo
               </>
             ) : (
               <>
-                <VolumeX className="h-4 w-4 text-slate-500" /> Som Desativado
+                <VolumeX className="h-4 w-4 text-slate-500" /> Bip Silenciado
               </>
             )}
           </Button>
 
-          {/* Ativar/Desativar Lanterna */}
+          {/* Habilitar / Desabilitar Lanterna */}
           {hasTorch && (
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               className="h-8 text-xs text-slate-400 hover:text-white hover:bg-slate-900 gap-1.5 px-2.5 rounded-lg"
@@ -302,11 +318,11 @@ export default function BarcodeScanner({ onScanSuccess, onClose }: BarcodeScanne
             >
               {isTorchOn ? (
                 <>
-                  <ZapOff className="h-4 w-4 text-amber-400 animate-pulse" /> Desligar Lanterna
+                  <ZapOff className="h-4 w-4 text-amber-400 animate-pulse" /> Desligar Flash
                 </>
               ) : (
                 <>
-                  <Zap className="h-4 w-4 text-slate-400" /> Ligar Lanterna
+                  <Zap className="h-4 w-4 text-slate-400" /> Ligar Flash
                 </>
               )}
             </Button>
