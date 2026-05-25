@@ -333,7 +333,11 @@ const Emprestimos = () => {
 
       {/* New Empréstimo Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="w-[95vw] sm:max-w-md max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Novo Empréstimo</DialogTitle>
             <DialogDescription>Selecione o aluno, livro e prazo de devolução.</DialogDescription>
