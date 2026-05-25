@@ -26,22 +26,27 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-background overflow-hidden font-sans">
       {/* Header */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto border-b border-border/40">
-        <div className="flex items-center gap-4">
-          <img src="/images/logo-unifor-transparent.png" alt="Logo Unifor" className="h-10 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <div className="h-8 w-px bg-border hidden sm:block"></div>
-          <div className="flex items-center gap-2">
-            <div className="bg-primary p-2 rounded-xl">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
+      <nav className="relative z-10 flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 max-w-7xl mx-auto border-b border-border/40 gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <img 
+            src="/images/logo-unifor-transparent.png" 
+            alt="Logo Unifor" 
+            className="h-8 sm:h-10 object-contain shrink-0" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+          <div className="h-8 w-px bg-border hidden sm:block shrink-0"></div>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="bg-primary p-1.5 sm:p-2 rounded-xl shrink-0 hidden sm:flex">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-primary">
+            <span className="text-sm sm:text-base md:text-xl font-bold text-primary truncate whitespace-nowrap">
               Acervo Yolanda
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <Link to="/login">
-            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl px-6 font-semibold shadow-sm">
+            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl h-8 px-3 text-[11px] sm:h-10 sm:px-6 sm:text-sm font-semibold shadow-sm transition-all whitespace-nowrap">
               Acessar Sistema
             </Button>
           </Link>
