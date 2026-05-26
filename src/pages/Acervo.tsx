@@ -249,7 +249,12 @@ const Acervo = () => {
     // This is the ONLY way mobile browsers will show the permission prompt
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: "continuous" }] as any
+        }
       });
       setCameraStream(stream);
       setCameraScannerOpen(true);

@@ -118,6 +118,9 @@ export default function BarcodeScanner({
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
+    
+    // Disable smoothing for sharper barcode edges
+    ctx.imageSmoothingEnabled = false;
 
     // Ensure hidden root div exists
     if (!document.getElementById(FALLBACK_DIV_ID)) {
@@ -135,16 +138,20 @@ export default function BarcodeScanner({
       if (!mountedRef.current || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0) return;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      // Re-apply after resize
+      ctx.imageSmoothingEnabled = false; 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
       canvas.toBlob(async (blob) => {
         if (!blob || !mountedRef.current) return;
         try {
           const file = new File([blob], "f.jpg", { type: "image/jpeg" });
+          // Scan with specific formats to improve speed and accuracy
           const result = await scanner.scanFile(file, false);
           if (result) handleDetected(result);
         } catch { /* no barcode in frame */ }
-      }, "image/jpeg", 0.8);
-    }, 300);
+      }, "image/jpeg", 0.85); // slightly higher quality
+    }, 150); // Fast 150ms interval (approx ~6-7 fps)
   }, [handleDetected]);
 
   // --- Attach pre-acquired stream to video and start scanning ---
@@ -235,7 +242,7 @@ export default function BarcodeScanner({
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover contrast-[1.15] brightness-[1.05] grayscale-[0.1]"
         />
         {/* Hidden canvas for fallback frame decoding */}
         <canvas ref={canvasRef} className="absolute -z-10 opacity-0 w-1 h-1 pointer-events-none" />
