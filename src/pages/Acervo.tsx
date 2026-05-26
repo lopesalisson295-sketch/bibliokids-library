@@ -108,11 +108,32 @@ const Acervo = () => {
 
   const openCreateDialog = () => {
     setEditingId(null);
-    setForm(emptyForm);
+    const draft = localStorage.getItem("livroDraft");
+    let hasDraft = false;
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.titulo || parsed.autor || parsed.isbn) {
+          setForm(parsed);
+          hasDraft = true;
+        } else {
+          setForm(emptyForm);
+        }
+      } catch (e) {
+        setForm(emptyForm);
+      }
+    } else {
+      setForm(emptyForm);
+    }
     setImageFile(null);
     setSearchProgress("");
     setLastSavedTitle("");
     setDialogOpen(true);
+    
+    if (hasDraft) {
+      toast({ title: "Rascunho recuperado", description: "Continuando de onde você parou." });
+    }
+    
     // Auto-focus no campo ISBN após abrir
     setTimeout(() => isbnInputRef.current?.focus(), 150);
   };
@@ -190,11 +211,13 @@ const Acervo = () => {
       setLastSavedTitle(form.titulo);
       setSessionCount(prev => prev + 1);
       setForm(emptyForm);
+      localStorage.removeItem("livroDraft");
       setImageFile(null);
       setSearchProgress("");
       // Re-focus no ISBN para escanear o próximo
       setTimeout(() => isbnInputRef.current?.focus(), 200);
     } else {
+      if (!editingId) localStorage.removeItem("livroDraft");
       setDialogOpen(false);
       if (turboMode) setTurboMode(false);
     }
@@ -226,6 +249,7 @@ const Acervo = () => {
       setLastSavedTitle(bookForm.titulo);
       setSessionCount(prev => prev + 1);
       toast({ title: `⚡ Salvo automaticamente!`, description: `"${bookForm.titulo}" cadastrado. Escaneie o próximo!` });
+      localStorage.removeItem("livroDraft");
     }
     setSaving(false);
     setForm(emptyForm);
@@ -235,6 +259,18 @@ const Acervo = () => {
     fetchLivros();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
+
+  // Auto-save form draft to localStorage
+  useEffect(() => {
+    if (!editingId && dialogOpen) {
+      const isFormEmpty = !form.titulo && !form.autor && !form.isbn && !form.genero && !form.editora;
+      if (isFormEmpty) {
+        localStorage.removeItem("livroDraft");
+      } else {
+        localStorage.setItem("livroDraft", JSON.stringify(form));
+      }
+    }
+  }, [form, editingId, dialogOpen]);
 
   const closeCameraScanner = () => {
     setCameraScannerOpen(false);
@@ -843,25 +879,42 @@ const Acervo = () => {
               </div>
             </div>
           </div>
-          <DialogFooter className="flex gap-2">
-            {turboMode ? (
-              <>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); setTurboMode(false); }}>
-                  <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar ({sessionCount})
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between w-full mt-4">
+            <div className="flex justify-center sm:justify-start">
+              {!editingId && !turboMode && (form.titulo || form.autor || form.isbn) && (
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setForm(emptyForm);
+                    localStorage.removeItem("livroDraft");
+                    toast({ title: "Formulário limpo" });
+                  }}
+                  className="text-muted-foreground hover:text-foreground h-9"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" /> Limpar Formulário
                 </Button>
-                <Button onClick={handleSave} disabled={saving || !form.titulo.trim()} className="bg-amber-600 hover:bg-amber-700">
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                  {saving ? "Salvando..." : "Salvar e Próximo"}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Salvando..." : editingId ? "Atualizar" : "Cadastrar"}
-                </Button>
-              </>
-            )}
+              )}
+            </div>
+            <div className="flex gap-2 flex-col sm:flex-row">
+              {turboMode ? (
+                <>
+                  <Button variant="outline" onClick={() => { setDialogOpen(false); setTurboMode(false); }}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar ({sessionCount})
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving || !form.titulo.trim()} className="bg-amber-600 hover:bg-amber-700">
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                    {saving ? "Salvando..." : "Salvar e Próximo"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? "Salvando..." : editingId ? "Atualizar" : "Cadastrar"}
+                  </Button>
+                </>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -995,7 +1048,7 @@ const Acervo = () => {
 
       {/* Overlay para o Leitor de Câmera (Barcode Scanner) */}
       {cameraScannerOpen && cameraStream && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <BarcodeScanner 
             stream={cameraStream}
             onScanSuccess={handleBarcodeScanned}
