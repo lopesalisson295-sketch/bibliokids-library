@@ -22,6 +22,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
   
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const startAttemptRef = useRef<number>(0);
+  const runningCameraIdRef = useRef<string | null>(null); // Track active camera to prevent redundant loop restarts
   const { toast } = useToast();
   
   const playBeep = () => {
@@ -47,7 +48,13 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
   };
 
   useEffect(() => {
-    // Atraso de 250ms antes de iniciar o scanner para dar tempo ao Dialog do RadixUI de montar o DOM
+    // Se a câmera que queremos iniciar já é a que está atualmente ativa e rodando,
+    // evitamos reinicializar redundante para não causar race condition ou travar o hardware no mobile.
+    if (selectedCameraId && selectedCameraId === runningCameraIdRef.current) {
+      return;
+    }
+
+    // Atraso de 250ms antes de iniciar o scanner para dar tempo ao Dialog de montar o DOM
     const timer = setTimeout(() => {
       startScanner();
     }, 250);
@@ -91,27 +98,30 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       const html5Qrcode = new Html5Qrcode("barcode-scanner-viewport");
       html5QrcodeRef.current = html5Qrcode;
 
-      // Configuração de câmera ideal:
-      // Se tivermos um cameraId específico selecionado pelo usuário, usamos ele.
-      // Se não, no celular iniciamos direto pedindo a câmera traseira ('environment').
+      // Configuração de câmera ideal para celular (HD, autofoco contínuo e modo seguro):
       const cameraConfig = selectedCameraId 
-        ? { deviceId: selectedCameraId } 
-        : { facingMode: "environment" };
+        ? { 
+            deviceId: selectedCameraId,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            advanced: [{ focusMode: "continuous" }]
+          } 
+        : { 
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            advanced: [{ focusMode: "continuous" }]
+          };
 
       await html5Qrcode.start(
         cameraConfig as any,
         {
-          fps: 12, // Excelente taxa para mobile sem drenar bateria
-          qrbox: (width, height) => {
-            // Área de foco retangular ótima para códigos de barras lineares
-            const boxWidth = Math.min(width * 0.85, 300);
-            const boxHeight = Math.min(height * 0.35, 110);
-            return {
-              x: (width - boxWidth) / 2,
-              y: (height - boxHeight) / 2,
-              width: boxWidth,
-              height: boxHeight,
-            };
+          fps: 20, // Aumentar de 12 para 20 quadros/seg melhora muito o rastreamento em celulares
+          // Omitimos/não definimos 'qrbox' para decodificar o FRAME INTEIRO do vídeo.
+          // Isso é CRÍTICO para suportar códigos pequenos, quadrados e de variadas formas,
+          // além de evitar desalinhamento visual entre o frame e a caixa matemática no celular.
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // Habilita detecção nativa acelerada no Chrome/Android e iOS
           },
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
@@ -143,6 +153,12 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       setIsLoading(false);
       setIsTorchOn(false);
 
+      // Sincronizar o runningCameraIdRef com a câmera ativada real
+      const activeTrackSettings = html5Qrcode.getRunningTrackSettings();
+      if (activeTrackSettings && activeTrackSettings.deviceId) {
+        runningCameraIdRef.current = activeTrackSettings.deviceId;
+      }
+
       // Verificar se a câmera ativa suporta Lanterna (Flash/Torch)
       try {
         const track = html5Qrcode.getRunningTrackCapabilities();
@@ -158,10 +174,9 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
             if (attemptId === startAttemptRef.current && devices && devices.length > 0) {
               setCameras(devices);
               
-              // Sincronizar o selectedCameraId com o ID da câmera real que o browser escolheu
-              const activeTrack = html5Qrcode.getRunningTrackSettings();
-              if (activeTrack && activeTrack.deviceId) {
-                setSelectedCameraId(activeTrack.deviceId);
+              // Sincronizar o selectedCameraId sem causar reinicializações
+              if (activeTrackSettings && activeTrackSettings.deviceId) {
+                setSelectedCameraId(activeTrackSettings.deviceId);
               }
             }
           })
@@ -183,6 +198,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
 
   const stopScanner = async () => {
     startAttemptRef.current++;
+    runningCameraIdRef.current = null;
     if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
       try {
         await html5QrcodeRef.current.stop();
@@ -252,7 +268,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
             {/* Texto de orientação */}
             <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
               <span className="inline-block bg-slate-900/90 border border-slate-800 text-[11px] font-medium text-slate-300 px-3 py-1 rounded-full shadow-md">
-                Aponte para o código de barras no centro do retângulo
+                Aponte para o código de barras (retangular ou quadrado)
               </span>
             </div>
           </div>
@@ -288,7 +304,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800 text-white">
                 {cameras.map((cam) => (
-                  <SelectItem key={cam.id} value={cam.id} className="text-xs hover:bg-slate-800 focus:bg-slate-800">
+                  <SelectItem key={cam.deviceId} value={cam.deviceId} className="text-xs hover:bg-slate-800 focus:bg-slate-800">
                     {cam.label || `Câmera ${cameras.indexOf(cam) + 1}`}
                   </SelectItem>
                 ))}
@@ -349,6 +365,11 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
           50% {
             top: 96%;
           }
+        }
+        #barcode-scanner-viewport video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
         }
       `}</style>
     </div>
