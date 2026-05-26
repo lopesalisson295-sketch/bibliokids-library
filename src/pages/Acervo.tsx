@@ -54,6 +54,7 @@ const Acervo = () => {
   const [lightboxUrl, setLightboxUrl] = useState("");
   const [lightboxAlt, setLightboxAlt] = useState("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isProcessingScanner, setIsProcessingScanner] = useState(false);
 
   // ⚡ MODO METRALHADORA: Cadastro em série ultra-rápido
@@ -235,6 +236,33 @@ const Acervo = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
 
+  const closeCameraScanner = () => {
+    setCameraScannerOpen(false);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const openCameraScanner = async () => {
+    // getUserMedia MUST be called in the direct click handler context (user gesture)
+    // This is the ONLY way mobile browsers will show the permission prompt
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } }
+      });
+      setCameraStream(stream);
+      setCameraScannerOpen(true);
+    } catch (err: any) {
+      console.error("Camera permission error:", err);
+      toast({
+        title: "Acesso à câmera negado",
+        description: "Vá nas configurações do navegador e permita o acesso à câmera para este site. No Chrome: toque nos 3 pontos (⋮) → Configurações do site → Câmera → Permitir.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleBarcodeScanned = async (decodedText: string) => {
     const cleanedText = decodedText.trim();
     if (!cleanedText || isProcessingScanner) return;
@@ -243,7 +271,7 @@ const Acervo = () => {
     setForm(prev => ({ ...prev, isbn: cleanedText }));
     
     if (!turboMode) {
-      setCameraScannerOpen(false);
+      closeCameraScanner();
     }
 
     toast({
@@ -257,7 +285,6 @@ const Acervo = () => {
       console.error("Erro na busca automática:", err);
     } finally {
       if (turboMode) {
-        // Cooldown de 2 segundos para evitar dupla leitura acidental
         setTimeout(() => {
           setIsProcessingScanner(false);
         }, 2000);
@@ -679,7 +706,7 @@ const Acervo = () => {
                   type="button"
                   variant="outline"
                   className={`shrink-0 border shadow-sm h-10 w-10 p-0 ${turboMode ? 'border-amber-250 bg-amber-50 hover:bg-amber-100 text-amber-700' : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700'}`}
-                  onClick={() => setCameraScannerOpen(true)}
+                  onClick={openCameraScanner}
                   title="Escanear com a câmera do celular"
                 >
                   <Camera className="h-4.5 w-4.5" />
@@ -961,16 +988,17 @@ const Acervo = () => {
         onClose={() => setLightboxUrl("")}
       />
 
-      {/* Dialog para o Leitor de Câmera (Barcode Scanner) */}
-      <Dialog open={cameraScannerOpen} onOpenChange={setCameraScannerOpen}>
-        <DialogContent className="sm:max-w-md p-0 border-0 overflow-hidden bg-slate-950">
+      {/* Overlay para o Leitor de Câmera (Barcode Scanner) */}
+      {cameraScannerOpen && cameraStream && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <BarcodeScanner 
+            stream={cameraStream}
             onScanSuccess={handleBarcodeScanned}
-            onClose={() => setCameraScannerOpen(false)}
+            onClose={closeCameraScanner}
             isProcessing={isProcessingScanner}
           />
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 };
