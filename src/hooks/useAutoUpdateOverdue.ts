@@ -13,8 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 export const syncOverdueLoans = async (): Promise<number> => {
   try {
     // Estratégia 1: Chamar a função RPC do servidor (mais eficiente)
-    const { data, error } = await supabase.rpc(
-      "atualizar_emprestimos_atrasados" as any
+    const { data, error } = await (supabase as any).rpc(
+      "atualizar_emprestimos_atrasados"
     );
 
     if (!error && typeof data === "number") {

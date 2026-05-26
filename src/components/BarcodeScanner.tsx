@@ -17,6 +17,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasTorch, setHasTorch] = useState(false);
+  const [permissionError, setPermissionError] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   
@@ -114,38 +115,60 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
             advanced: [{ focusMode: "continuous" }]
           };
 
-      await html5Qrcode.start(
-        cameraConfig as any,
-        {
-          fps: 20, // Aumentar de 12 para 20 quadros/seg melhora muito o rastreamento em celulares
-          // Omitimos/não definimos 'qrbox' para decodificar o FRAME INTEIRO do vídeo.
-          // Isso é CRÍTICO para suportar códigos pequenos, quadrados e de variadas formas,
-          // além de evitar desalinhamento visual entre o frame e a caixa matemática no celular.
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true // Habilita detecção nativa acelerada no Chrome/Android e iOS
-          },
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39
-          ]
+      const scanConfig = {
+        fps: 20, // Aumentar de 12 para 20 quadros/seg melhora muito o rastreamento em celulares
+        // Omitimos/não definimos 'qrbox' para decodificar o FRAME INTEIRO do vídeo.
+        // Isso é CRÍTICO para suportar códigos pequenos, quadrados e de variadas formas,
+        // além de evitar desalinhamento visual entre o frame e a caixa matemática no celular.
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Habilita detecção nativa acelerada no Chrome/Android e iOS
         },
-        (decodedText) => {
-          if (isProcessing) return;
-          playBeep();
-          if (navigator.vibrate) {
-            navigator.vibrate(100);
-          }
-          // Chamar callback de sucesso com o código lido
-          onScanSuccess(decodedText);
-        },
-        () => {
-          // Callback de busca em andamento (silencioso para performance)
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39
+        ]
+      } as any;
+
+      const onSuccess = (decodedText: string) => {
+        if (isProcessing) return;
+        playBeep();
+        if (navigator.vibrate) {
+          navigator.vibrate(100);
         }
-      );
+        // Chamar callback de sucesso com o código lido
+        onScanSuccess(decodedText);
+      };
+
+      const onFailure = () => {
+        // Callback de busca em andamento (silencioso para performance)
+      };
+
+      try {
+        await html5Qrcode.start(
+          cameraConfig as any,
+          scanConfig,
+          onSuccess,
+          onFailure
+        );
+      } catch (firstErr) {
+        console.warn("Falha ao iniciar com configurações ideais, tentando modo compatibilidade:", firstErr);
+        // Fallback para constraints básicas (sem width/height ideal ou focusMode avançado)
+        const fallbackConfig = selectedCameraId 
+          ? { deviceId: selectedCameraId } 
+          : { facingMode: "environment" };
+        
+        await html5Qrcode.start(
+          fallbackConfig as any,
+          scanConfig,
+          onSuccess,
+          onFailure
+        );
+      }
 
       // Confirmar que esta tentativa ainda é a ativa
       if (attemptId !== startAttemptRef.current) return;
@@ -173,7 +196,14 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
         Html5Qrcode.getCameras()
           .then((devices) => {
             if (attemptId === startAttemptRef.current && devices && devices.length > 0) {
-              setCameras(devices);
+              // Map CameraDevice[] to MediaDeviceInfo[] to maintain type compatibility
+              setCameras(devices.map(d => ({
+                deviceId: d.id,
+                label: d.label,
+                kind: "videoinput" as any,
+                groupId: "",
+                toJSON: () => ({})
+              } as any)));
               
               // Sincronizar o selectedCameraId sem causar reinicializações
               if (activeTrackSettings && activeTrackSettings.deviceId) {
@@ -188,12 +218,15 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       console.error("Erro completo ao iniciar câmera:", err);
       if (attemptId !== startAttemptRef.current) return;
       
+      setIsLoading(false);
+      setIsScanning(false);
+      setPermissionError(true);
+      
       toast({
-        title: "Acesso à câmera recusado",
-        description: "Não foi possível acessar a câmera. Certifique-se de dar permissões de câmera e que nenhuma outra aba/app a esteja usando.",
+        title: "Acesso à câmera necessário",
+        description: "Não foi possível acessar a câmera automaticamente. Clique em 'Permitir' para conceder acesso.",
         variant: "destructive"
       });
-      onClose();
     }
   };
 
@@ -227,6 +260,39 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       });
     }
   };
+
+  if (permissionError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 text-center bg-slate-950 text-white rounded-2xl w-full max-w-md mx-auto aspect-video min-h-[320px] border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-3 bg-red-500/10 rounded-full text-red-500 mb-4 animate-bounce">
+          <Camera className="h-8 w-8" />
+        </div>
+        <h3 className="font-semibold text-lg text-slate-200">Acesso à Câmera Necessário</h3>
+        <p className="text-sm text-slate-400 mt-2 mb-6 px-4">
+          Para cadastrar os livros através dos códigos de barras ou QR codes do seu celular, precisamos de permissão para acessar sua câmera.
+        </p>
+        <div className="flex gap-3 w-full max-w-[280px]">
+          <Button 
+            variant="outline" 
+            className="flex-1 border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white" 
+            onClick={onClose}
+          >
+            Fechar
+          </Button>
+          <Button 
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg font-medium" 
+            onClick={() => {
+              setPermissionError(false);
+              setIsLoading(true);
+              startScanner();
+            }}
+          >
+            Permitir
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center w-full max-w-md mx-auto bg-slate-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in zoom-in-95 duration-200">

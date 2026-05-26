@@ -679,7 +679,19 @@ const Acervo = () => {
                   type="button"
                   variant="outline"
                   className={`shrink-0 border shadow-sm h-10 w-10 p-0 ${turboMode ? 'border-amber-250 bg-amber-50 hover:bg-amber-100 text-amber-700' : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700'}`}
-                  onClick={() => setCameraScannerOpen(true)}
+                  onClick={async () => {
+                    // Solicita permissão da câmera no contexto direto de clique do usuário
+                    try {
+                      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        // Para o stream imediatamente após obter a autorização
+                        stream.getTracks().forEach(track => track.stop());
+                      }
+                    } catch (err) {
+                      console.warn("Permissão de câmera negada ou não suportada no clique:", err);
+                    }
+                    setCameraScannerOpen(true);
+                  }}
                   title="Escanear com a câmera do celular"
                 >
                   <Camera className="h-4.5 w-4.5" />
