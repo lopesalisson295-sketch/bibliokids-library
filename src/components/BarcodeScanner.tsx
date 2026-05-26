@@ -261,39 +261,6 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
     }
   };
 
-  if (permissionError) {
-    return (
-      <div className="flex flex-col items-center justify-center p-6 text-center bg-slate-950 text-white rounded-2xl w-full max-w-md mx-auto aspect-video min-h-[320px] border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-3 bg-red-500/10 rounded-full text-red-500 mb-4 animate-bounce">
-          <Camera className="h-8 w-8" />
-        </div>
-        <h3 className="font-semibold text-lg text-slate-200">Acesso à Câmera Necessário</h3>
-        <p className="text-sm text-slate-400 mt-2 mb-6 px-4">
-          Para cadastrar os livros através dos códigos de barras ou QR codes do seu celular, precisamos de permissão para acessar sua câmera.
-        </p>
-        <div className="flex gap-3 w-full max-w-[280px]">
-          <Button 
-            variant="outline" 
-            className="flex-1 border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white" 
-            onClick={onClose}
-          >
-            Fechar
-          </Button>
-          <Button 
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg font-medium" 
-            onClick={() => {
-              setPermissionError(false);
-              setIsLoading(true);
-              startScanner();
-            }}
-          >
-            Permitir
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center w-full max-w-md mx-auto bg-slate-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
       {/* Cabeçalho */}
@@ -315,7 +282,39 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       {/* Janela da Câmera (Viewport) */}
       <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
         {/* Este é o elemento exato onde o html5-qrcode renderiza o stream */}
-        <div id="barcode-scanner-viewport" className="w-full h-full object-cover"></div>
+        <div id="barcode-scanner-viewport" className={`w-full h-full object-cover ${permissionError ? "hidden" : "block"}`}></div>
+
+        {/* Overlay de Permissão Necessária */}
+        {permissionError && (
+          <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-4 text-center z-20 animate-in fade-in duration-200">
+            <div className="p-3 bg-red-500/10 rounded-full text-red-500 mb-2 animate-bounce">
+              <Camera className="h-6 w-6" />
+            </div>
+            <h3 className="font-semibold text-sm text-slate-200">Acesso à Câmera Necessário</h3>
+            <p className="text-[11px] text-slate-400 mt-1 mb-4 px-4 leading-relaxed">
+              Para cadastrar os livros através dos códigos de barras ou QR codes do seu celular, precisamos de permissão para acessar sua câmera.
+            </p>
+            <div className="flex gap-2 w-full max-w-[240px]">
+              <Button 
+                variant="outline" 
+                className="flex-1 h-8 text-[11px] border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white" 
+                onClick={onClose}
+              >
+                Fechar
+              </Button>
+              <Button 
+                className="flex-1 h-8 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg font-medium" 
+                onClick={() => {
+                  setPermissionError(false);
+                  setIsLoading(true);
+                  startScanner();
+                }}
+              >
+                Permitir
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Overlay do Scanner de Alta Qualidade */}
         {isScanning && !isLoading && (
