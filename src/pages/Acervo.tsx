@@ -73,6 +73,7 @@ const Acervo = () => {
 
   useEffect(() => {
     fetchLivros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchLivros = async () => {
@@ -231,6 +232,7 @@ const Acervo = () => {
     setSearchProgress("");
     setTimeout(() => isbnInputRef.current?.focus(), 200);
     fetchLivros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSaveEnabled, turboMode, saving, editingId, toast]);
 
   const handleBarcodeScanned = async (decodedText: string) => {
@@ -274,6 +276,7 @@ const Acervo = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.isbn]);
 
   const fetchBookByIsbn = async (isbnToFetch?: string) => {

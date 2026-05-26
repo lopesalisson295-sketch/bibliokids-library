@@ -464,7 +464,7 @@ export async function searchBookByIsbn(
   }
   validResults.sort((a, b) => b.data.score - a.data.score);
 
-  let bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", tem_capa_boa: false };
+  const bookData = { titulo: "", autor: "", tradutor: "", editora: "", ano: "", genero: "", capa_url: "", descricao: "", tem_capa_boa: false };
   let usedIsbn = correctedIsbn;
   let allCats: string[] = [];
   let bestGoogleVolumeId = "";

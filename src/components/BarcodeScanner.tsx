@@ -63,6 +63,7 @@ export default function BarcodeScanner({ onScanSuccess, onClose, isProcessing = 
       clearTimeout(timer);
       stopScanner();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCameraId]);
 
   const startScanner = async () => {

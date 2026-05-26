@@ -47,6 +47,7 @@ const Alunos = () => {
 
   useEffect(() => {
     fetchAlunos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAlunos = async () => {
