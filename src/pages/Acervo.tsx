@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, Plus, Search, Pencil, Trash2, X, Image as ImageIcon, History, CheckCircle2, AlertTriangle, ArrowLeftRight, Users, Zap, RotateCcw, Loader2, ScanBarcode, ChevronRight, Package, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1047,15 +1048,16 @@ const Acervo = () => {
       />
 
       {/* Overlay para o Leitor de Câmera (Barcode Scanner) */}
-      {cameraScannerOpen && cameraStream && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {cameraScannerOpen && cameraStream && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ zIndex: 9999 }}>
           <BarcodeScanner 
             stream={cameraStream}
             onScanSuccess={handleBarcodeScanned}
             onClose={closeCameraScanner}
             isProcessing={isProcessingScanner}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
